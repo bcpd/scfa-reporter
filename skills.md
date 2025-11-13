@@ -84,7 +84,7 @@ Steps:
    - `fit_scfa_models(df, model, random)`
    - `plot_scfa(df, ...)`
    - `run_scfa_pipeline(scfa_path, manifest_path, target_unit, basis, model, random)`
-    
+
     Example function signature for `normalize_scfa.R`:
 ```r
    #' Normalize SCFA data
@@ -442,4 +442,3 @@ rmarkdown::draft("test", template = "scfa-report", package = "scfaReporter")
 # Run demo pipeline
 scfaReporter::run_scfa_pipeline(...)
 ```
-
