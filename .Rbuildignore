@@ -5,3 +5,5 @@
 ^_pkgdown\.yml$
 ^docs$
 ^pkgdown$
+^\.pre-commit-config\.yaml$
+^codemeta\.json$

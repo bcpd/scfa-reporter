@@ -1,0 +1,14 @@
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v6.0.0
+    hooks:
+      - id: check-added-large-files
+      - id: end-of-file-fixer
+      - id: trailing-whitespace
+  - repo: https://github.com/lorenzwalthert/precommit
+    rev: v0.4.3.9017
+    hooks:
+      - id: style-files
+      - id: lintr
+      - id: roxygenize
+      - id: spell-check
