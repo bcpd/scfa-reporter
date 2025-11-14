@@ -82,11 +82,18 @@ render_scfa_report <- function(
     manifest_override = manifest
   )
 
+  if (is.null(output_dir)) {
+    output_dir <- getwd()
+  }
+  dir.create(output_dir, recursive = TRUE, showWarnings = FALSE)
+  output_path <- file.path(output_dir, output_file)
+
   quarto::quarto_render(
     input = template,
     execute_params = params,
-    output_file = output_file,
-    output_dir = output_dir,
+    output_file = output_path,
     ...
   )
+
+  invisible(output_path)
 }
