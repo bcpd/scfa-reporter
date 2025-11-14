@@ -19,6 +19,8 @@ params:
   export_csv: true
   scfa_data: !expr NULL
   manifest_override: !expr NULL
+  scfa_data_path: !expr NULL
+  manifest_path_override: !expr NULL
 format:
   html:
     theme: cerulean
@@ -34,11 +36,6 @@ execute:
   echo: false
 ---
 
-::: {.callout-note}
-Make sure `scfaReporter` is installed and that the `scfa_dir` parameter points to
-Chromeleon `.xls` exports while `manifest_path` points to the metadata workbook.
-:::
-
 ```{r setup}
 required_params <- c("project_id", "analytes")
 missing <- required_params[vapply(required_params, function(x) {
@@ -48,11 +45,13 @@ missing <- required_params[vapply(required_params, function(x) {
 if (length(missing) > 0) {
   stop("Missing required parameters: ", paste(missing, collapse = ", "), call. = FALSE)
 }
-if (is.null(params$scfa_data) && is.null(params$scfa_dir)) {
-  stop("Set either params$scfa_data or params$scfa_dir.", call. = FALSE)
+has_scfa_data <- !is.null(params$scfa_data) || (!is.null(params$scfa_data_path) && file.exists(params$scfa_data_path))
+if (!has_scfa_data && is.null(params$scfa_dir)) {
+  stop("Provide either scfa data (object or .rds path) or scfa_dir.", call. = FALSE)
 }
-if (is.null(params$manifest_override) && is.null(params$manifest_path)) {
-  stop("Set either params$manifest_override or params$manifest_path.", call. = FALSE)
+has_manifest <- !is.null(params$manifest_override) || (!is.null(params$manifest_path_override) && file.exists(params$manifest_path_override))
+if (!has_manifest && is.null(params$manifest_path)) {
+  stop("Provide either manifest data (object or .rds path) or manifest_path.", call. = FALSE)
 }
 
 library(scfaReporter)
@@ -64,13 +63,22 @@ library(tidyr)
 `%||%` <- function(x, y) if (is.null(x) || length(x) == 0) y else x
 
 aov_formula <- params$aov_formula
-if (is.character(aov_formula) && nzchar(aov_formula)) {
+if (!inherits(aov_formula, "formula") && is.character(aov_formula) && nzchar(aov_formula)) {
   aov_formula <- stats::as.formula(aov_formula)
 }
 
 lmer_formula <- params$lmer_formula
-if (is.character(lmer_formula) && nzchar(lmer_formula)) {
+if (!inherits(lmer_formula, "formula") && is.character(lmer_formula) && nzchar(lmer_formula)) {
   lmer_formula <- stats::as.formula(lmer_formula)
+}
+
+scfa_data_obj <- params$scfa_data
+if (!is.null(params$scfa_data_path) && file.exists(params$scfa_data_path)) {
+  scfa_data_obj <- readRDS(params$scfa_data_path)
+}
+manifest_obj <- params$manifest_override
+if (!is.null(params$manifest_path_override) && file.exists(params$manifest_path_override)) {
+  manifest_obj <- readRDS(params$manifest_path_override)
 }
 
 pipeline <- scfaReporter::run_scfa_pipeline(
@@ -85,8 +93,8 @@ pipeline <- scfaReporter::run_scfa_pipeline(
   x_col = params$x_col,
   facet_col = params$facet_col,
   y_label = params$y_label,
-  scfa_data = params$scfa_data,
-  manifest = params$manifest_override
+  scfa_data = scfa_data_obj,
+  manifest = manifest_obj
 )
 
 normalized_data <- pipeline$normalized
@@ -140,7 +148,7 @@ knitr::kable(
 
 ## Visualization
 
-```{r plots}
+```{r plots, results='asis'}
 cat("::: {.panel-tabset}\n\n")
 for (name in names(plots)) {
   cat("### ", name, "\n\n", sep = "")
@@ -153,7 +161,7 @@ cat(":::\n")
 ## Statistical analysis
 
 ::: {.panel-tabset}
-```{r stats}
+```{r stats, results='asis'}
 if (params$stats == "lmer") {
   for (name in names(models)) {
     model_info <- models[[name]]

@@ -63,6 +63,26 @@ render_scfa_report <- function(
     stop("Template not found in the installed package.", call. = FALSE)
   }
 
+  if (inherits(aov_formula, "formula")) {
+    aov_formula <- Reduce(paste, deparse(aov_formula))
+  }
+  if (inherits(lmer_formula, "formula")) {
+    lmer_formula <- Reduce(paste, deparse(lmer_formula))
+  }
+
+  scfa_data_path <- NULL
+  if (!is.null(scfa_data)) {
+    scfa_data_path <- tempfile(fileext = ".rds")
+    saveRDS(scfa_data, scfa_data_path)
+    scfa_data <- NULL
+  }
+  manifest_path_override <- NULL
+  if (!is.null(manifest)) {
+    manifest_path_override <- tempfile(fileext = ".rds")
+    saveRDS(manifest, manifest_path_override)
+    manifest <- NULL
+  }
+
   params <- list(
     project_id = project_id,
     sample_type = sample_type,
@@ -79,21 +99,59 @@ render_scfa_report <- function(
     y_label = y_label,
     export_csv = export_csv,
     scfa_data = scfa_data,
-    manifest_override = manifest
+    manifest_override = manifest,
+    scfa_data_path = scfa_data_path,
+    manifest_path_override = manifest_path_override
   )
 
   if (is.null(output_dir)) {
     output_dir <- getwd()
   }
   dir.create(output_dir, recursive = TRUE, showWarnings = FALSE)
-  output_path <- file.path(output_dir, output_file)
+  output_name <- basename(output_file)
+  output_path <- file.path(output_dir, output_name)
 
-  quarto::quarto_render(
-    input = template,
-    execute_params = params,
-    output_file = output_path,
-    ...
+  tmp_root <- normalizePath(tempdir(), winslash = "/", mustWork = TRUE)
+  tmp_dir <- file.path(tmp_root, paste0("scfa_report_", Sys.getpid()))
+  dir.create(tmp_dir, recursive = TRUE, showWarnings = FALSE)
+  tmp_input <- file.path(tmp_dir, basename(template))
+  file.copy(template, tmp_input, overwrite = TRUE)
+
+  cleanup_warning <- FALSE
+  tryCatch(
+    {
+      quarto::quarto_render(
+        input = tmp_input,
+        execute_params = params,
+        output_file = output_name,
+        ...
+      )
+    },
+    error = function(e) {
+      msg <- conditionMessage(e)
+      if (grepl("Refusing to remove directory", msg, fixed = TRUE)) {
+        warning("Quarto cleanup issue: ", msg)
+        cleanup_warning <<- TRUE
+      } else {
+        stop(e)
+      }
+    }
   )
+
+  rendered_file <- file.path(tmp_dir, output_name)
+  if (!file.exists(rendered_file)) {
+    stop("Rendered file not found at ", rendered_file)
+  }
+  file.copy(rendered_file, output_path, overwrite = TRUE)
+
+  csv_tmp <- file.path(tmp_dir, "scfa_concentration_normalized.csv")
+  if (file.exists(csv_tmp)) {
+    file.copy(csv_tmp, file.path(output_dir, "scfa_concentration_normalized.csv"), overwrite = TRUE)
+  }
+
+  if (!cleanup_warning) {
+    unlink(tmp_dir, recursive = TRUE)
+  }
 
   invisible(output_path)
 }
