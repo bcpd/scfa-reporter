@@ -18,8 +18,10 @@ default_scfa_analytes <- function() {
 
 #' High-level helper that runs the SCFA processing pipeline
 #'
-#' @param scfa_dir Directory with chromatogram `.xls` files.
-#' @param manifest_path Path to the manifest workbook.
+#' @param scfa_dir Directory with chromatogram `.xls` files. Ignored when
+#'   `scfa_data` is supplied.
+#' @param manifest_path Path to the manifest workbook. Ignored when `manifest`
+#'   is supplied.
 #' @param analytes Character vector with analyte column names. Defaults to
 #'   [default_scfa_analytes()].
 #' @param subset_pattern Optional regular expression used to subset chromatogram
@@ -33,6 +35,10 @@ default_scfa_analytes <- function() {
 #' @param x_col Column for the x-axis in the plots.
 #' @param facet_col Optional column used for facetting plots.
 #' @param y_label Y-axis label for the plots.
+#' @param scfa_data Optional tibble that mimics the output of
+#'   [read_scfa_raw()]. When supplied, `scfa_dir` is ignored.
+#' @param manifest Optional tibble returned by [read_scfa_manifest()]. When
+#'   supplied, `manifest_path` is ignored.
 #'
 #' @return A named list that bundles raw data, manifest, normalized data, long
 #'   format tibble, model objects, summary tables, and ggplot objects.
@@ -58,12 +64,30 @@ run_scfa_pipeline <- function(scfa_dir,
                               aov_formula = NULL,
                               x_col = "Group",
                               facet_col = "Time",
-                              y_label = "SCFA concentration") {
+                              y_label = "SCFA concentration",
+                              scfa_data = NULL,
+                              manifest = NULL) {
   stats <- match.arg(stats)
 
-  raw_data <- read_scfa_raw(dir = scfa_dir, subset_pattern = subset_pattern)
-  manifest <- read_scfa_manifest(manifest_path)
-  merged <- merge_scfa_data(raw_data, manifest)
+  if (is.null(scfa_data)) {
+    if (missing(scfa_dir)) {
+      stop("Provide either 'scfa_dir' or 'scfa_data'.", call. = FALSE)
+    }
+    raw_data <- read_scfa_raw(dir = scfa_dir, subset_pattern = subset_pattern)
+  } else {
+    raw_data <- scfa_data
+  }
+
+  if (is.null(manifest)) {
+    if (missing(manifest_path)) {
+      stop("Provide either 'manifest_path' or 'manifest'.", call. = FALSE)
+    }
+    manifest_tbl <- read_scfa_manifest(manifest_path)
+  } else {
+    manifest_tbl <- manifest
+  }
+
+  merged <- merge_scfa_data(raw_data, manifest_tbl)
   normalized <- normalize_scfa(
     merged,
     analytes = analytes,
@@ -87,7 +111,7 @@ run_scfa_pipeline <- function(scfa_dir,
 
   list(
     raw_data = raw_data,
-    manifest = manifest,
+    manifest = manifest_tbl,
     merged = merged,
     normalized = normalized,
     long = scfa_long,

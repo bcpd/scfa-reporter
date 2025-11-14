@@ -12,4 +12,5 @@
 ^skills\.md$
 ^README\.html$
 ^reports$
+^data-raw$
 ^codemeta\.json$

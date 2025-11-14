@@ -10,6 +10,7 @@
 #' @param palette Character vector with manual colour values.
 #'
 #' @return A named list of ggplot objects, one per analyte.
+#' @importFrom rlang .data
 #' @export
 plot_scfa_panels <- function(scfa_long,
                              analyte_col = "Analyte",
@@ -25,10 +26,13 @@ plot_scfa_panels <- function(scfa_long,
 
   for (analyte in analytes) {
     subset_df <- scfa_long[scfa_long[[analyte_col]] == analyte, ]
-    p <- ggplot2::ggplot(subset_df, ggplot2::aes_string(x = x_col, y = value_col)) +
+    p <- ggplot2::ggplot(
+      subset_df,
+      ggplot2::aes(x = .data[[x_col]], y = .data[[value_col]])
+    ) +
       ggplot2::geom_boxplot(outlier.alpha = 0) +
       ggplot2::geom_jitter(
-        ggplot2::aes_string(colour = colour_col),
+        ggplot2::aes(colour = .data[[colour_col]]),
         width = 0.2,
         height = 0,
         alpha = 0.7,

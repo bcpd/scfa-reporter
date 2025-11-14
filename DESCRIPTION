@@ -1,9 +1,15 @@
 Package: scfaReporter
-Title: What the Package Does (One Line, Title Case)
-Version: 0.0.0.9000
+Title: Standardized Short-Chain Fatty Acid Reporting Tools
+Version: 0.1.0
 Authors@R:
-    person("First", "Last", , "first.last@example.com", role = c("aut", "cre"))
-Description: What the package does (one paragraph).
+    c(
+      person("Microbiome", "Insights", email = "info@microbiomeinsights.com", role = c("aut", "cre")),
+      person("Data Science Team", role = "ctb")
+    )
+Description: Utilities for loading Chromeleon SCFA chromatogram exports,
+    joining them with sample manifests, normalizing concentrations, running
+    ANOVA or mixed-effects models, and rendering a Quarto report template that
+    mirrors Microbiome Insights’ standard SCFA deliverable.
 License: MIT + file LICENSE
 Encoding: UTF-8
 Roxygen: list(markdown = TRUE)
@@ -17,6 +23,14 @@ Imports:
     rlang,
     tibble,
     tidyr
-Suggests: 
-    testthat (>= 3.0.0)
+Suggests:
+    testthat (>= 3.0.0),
+    rmarkdown,
+    quarto,
+    knitr
 Config/testthat/edition: 3
+Depends: 
+    R (>= 3.5)
+LazyData: true
+URL: https://github.com/MicrobiomeInsights/scfaReporter
+BugReports: https://github.com/MicrobiomeInsights/scfaReporter/issues

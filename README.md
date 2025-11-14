@@ -1,51 +1,67 @@
-
-<!-- README.md is generated from README.Rmd. Please edit that file -->
-
 # scfaReporter
 
 <!-- badges: start -->
-
 <!-- badges: end -->
 
-The goal of scfaReporter is to …
+The goal of scfaReporter is to ...
 
 ## Installation
 
-You can install the development version of scfaReporter like so:
+Install the latest internal build directly from GitHub:
 
-``` r
-# FILL THIS IN! HOW CAN PEOPLE INSTALL YOUR DEV PACKAGE?
+```r
+# install.packages("pak")
+pak::pak("MicrobiomeInsights/scfaReporter")
+# or: remotes::install_github("MicrobiomeInsights/scfaReporter")
 ```
 
-## Example
+## Quick start: run the pipeline on demo data
 
-This is a basic example which shows you how to solve a common problem:
+Two tiny demo datasets ship with the package so you can exercise the pipeline
+without external files.
 
-``` r
+```r
 library(scfaReporter)
-## basic example code
+
+# Demo dataset 1: simple two-group comparison
+demo1 <- run_scfa_pipeline(
+  scfa_data = demo_scfa_dataset1,
+  manifest = demo_manifest_dataset1,
+  analytes = c("Acetic.Acid", "Propionic.Acid", "Butyric.Acid"),
+  stats = "anova",
+  aov_formula = value ~ Group
+)
+
+# Demo dataset 2: longitudinal design
+demo2 <- run_scfa_pipeline(
+  scfa_data = demo_scfa_dataset2,
+  manifest = demo_manifest_dataset2,
+  analytes = c("Acetic.Acid", "Propionic.Acid", "Butyric.Acid"),
+  stats = "anova",
+  aov_formula = value ~ Group * Time
+)
+
+head(demo1$summary)
+demo2$plots$Butyric.Acid
 ```
 
-What is special about using `README.Rmd` instead of just `README.md`?
-You can include R chunks like so:
+## Generate the SCFA report
 
-``` r
-summary(cars)
-#>      speed           dist
-#>  Min.   : 4.0   Min.   :  2.00
-#>  1st Qu.:12.0   1st Qu.: 26.00
-#>  Median :15.0   Median : 36.00
-#>  Mean   :15.4   Mean   : 42.98
-#>  3rd Qu.:19.0   3rd Qu.: 56.00
-#>  Max.   :25.0   Max.   :120.00
-```
-
-You’ll still need to render `README.Rmd` regularly, to keep `README.md`
-up-to-date. `devtools::build_readme()` is handy for this.
-
-You can also embed plots, for example:
-
-<img src="man/figures/README-pressure-1.png" width="100%" />
-
-In that case, don’t forget to commit and push the resulting figure
-files, so they display on GitHub and CRAN.
+1. Draft the template (one-time per project):
+   ```r
+   rmarkdown::draft(
+     file = "reports/my_project.qmd",
+     template = "scfa-report",
+     package = "scfaReporter",
+     create_dir = TRUE
+   )
+   ```
+2. Edit the YAML `params` block in `reports/my_project/my_project.qmd` to point
+   to your Chromeleon `.xls` directory (`scfa_dir`), manifest workbook
+   (`manifest_path`), normalization multiplier, and model choice (`stats`).
+3. Render the report:
+   ```r
+   quarto::quarto_render("reports/my_project/my_project.qmd")
+   ```
+   The render writes the HTML report plus (optionally) a
+   `scfa_concentration_normalized.csv` file alongside it.

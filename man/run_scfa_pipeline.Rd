@@ -16,13 +16,17 @@ run_scfa_pipeline(
   aov_formula = NULL,
   x_col = "Group",
   facet_col = "Time",
-  y_label = "SCFA concentration"
+  y_label = "SCFA concentration",
+  scfa_data = NULL,
+  manifest = NULL
 )
 }
 \arguments{
-\item{scfa_dir}{Directory with chromatogram \code{.xls} files.}
+\item{scfa_dir}{Directory with chromatogram \code{.xls} files. Ignored when
+\code{scfa_data} is supplied.}
 
-\item{manifest_path}{Path to the manifest workbook.}
+\item{manifest_path}{Path to the manifest workbook. Ignored when \code{manifest}
+is supplied.}
 
 \item{analytes}{Character vector with analyte column names. Defaults to
 \code{\link[=default_scfa_analytes]{default_scfa_analytes()}}.}
@@ -46,6 +50,12 @@ files.}
 \item{facet_col}{Optional column used for facetting plots.}
 
 \item{y_label}{Y-axis label for the plots.}
+
+\item{scfa_data}{Optional tibble that mimics the output of
+\code{\link[=read_scfa_raw]{read_scfa_raw()}}. When supplied, \code{scfa_dir} is ignored.}
+
+\item{manifest}{Optional tibble returned by \code{\link[=read_scfa_manifest]{read_scfa_manifest()}}. When
+supplied, \code{manifest_path} is ignored.}
 }
 \value{
 A named list that bundles raw data, manifest, normalized data, long
