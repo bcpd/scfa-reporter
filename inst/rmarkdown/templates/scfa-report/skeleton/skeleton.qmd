@@ -17,6 +17,8 @@ params:
   facet_col: "Time"
   y_label: "mmol SCFA / L plasma"
   export_csv: true
+  scfa_data: !expr NULL
+  manifest_override: !expr NULL
 format:
   html:
     theme: cerulean
@@ -38,13 +40,19 @@ Chromeleon `.xls` exports while `manifest_path` points to the metadata workbook.
 :::
 
 ```{r setup}
-required_params <- c("project_id", "scfa_dir", "manifest_path")
+required_params <- c("project_id", "analytes")
 missing <- required_params[vapply(required_params, function(x) {
   val <- params[[x]]
   is.null(val) || identical(val, "")
 }, logical(1))]
 if (length(missing) > 0) {
   stop("Missing required parameters: ", paste(missing, collapse = ", "), call. = FALSE)
+}
+if (is.null(params$scfa_data) && is.null(params$scfa_dir)) {
+  stop("Set either params$scfa_data or params$scfa_dir.", call. = FALSE)
+}
+if (is.null(params$manifest_override) && is.null(params$manifest_path)) {
+  stop("Set either params$manifest_override or params$manifest_path.", call. = FALSE)
 }
 
 library(scfaReporter)
@@ -76,7 +84,9 @@ pipeline <- scfaReporter::run_scfa_pipeline(
   aov_formula = aov_formula,
   x_col = params$x_col,
   facet_col = params$facet_col,
-  y_label = params$y_label
+  y_label = params$y_label,
+  scfa_data = params$scfa_data,
+  manifest = params$manifest_override
 )
 
 normalized_data <- pipeline$normalized

@@ -62,7 +62,38 @@ demo2$plots$Butyric.Acid
 
 ## Generate the SCFA report
 
-1. Draft the template (one-time per project):
+Render the bundled Quarto template directly from R:
+
+```{r render-demo, eval=FALSE}
+library(scfaReporter)
+
+# Demo data (no Chromeleon files required)
+render_scfa_report(
+  output_file = "demo1.html",
+  project_id = "Demo dataset 1",
+  scfa_data = demo_scfa_dataset1,
+  manifest = demo_manifest_dataset1,
+  analytes = c("Acetic.Acid", "Propionic.Acid", "Butyric.Acid"),
+  stats = "anova",
+  aov_formula = value ~ Group
+)
+
+# Real Chromeleon exports + manifest
+render_scfa_report(
+  output_file = "client_project.html",
+  project_id = "P-0123",
+  scfa_dir = "data/chromatograms",
+  manifest_path = "data/manifest.xlsx",
+  normalization_multiplier = 7,
+  normalization_basis = "mmol_per_L_plasma",
+  stats = "lmer",
+  lmer_formula = value ~ Group * Time + (1 | Subject_ID)
+)
+```
+
+Prefer to edit the template locally? Draft it once and render manually:
+
+1. Draft:
    ```r
    rmarkdown::draft(
      file = "reports/my_project.qmd",
@@ -71,12 +102,8 @@ demo2$plots$Butyric.Acid
      create_dir = TRUE
    )
    ```
-2. Edit the YAML `params` block in `reports/my_project/my_project.qmd` to point
-   to your Chromeleon `.xls` directory (`scfa_dir`), manifest workbook
-   (`manifest_path`), normalization multiplier, and model choice (`stats`).
-3. Render the report:
-   ```r
-   quarto::quarto_render("reports/my_project/my_project.qmd")
-   ```
-   The render writes the HTML report plus (optionally) a
-   `scfa_concentration_normalized.csv` file alongside it.
+2. Update the YAML `params` in `reports/my_project/my_project.qmd` (set either
+   `scfa_dir`/`manifest_path` or `scfa_data`/`manifest_override`).
+3. Render: `quarto::quarto_render("reports/my_project/my_project.qmd")`.
+   The HTML report (and optional `scfa_concentration_normalized.csv`) appears
+   beside the `.qmd`.
