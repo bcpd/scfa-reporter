@@ -7,7 +7,8 @@
 
 <!-- badges: end -->
 
-The goal of scfaReporter is to …
+The goal of scfaReporter is to analyze and report on raw SCFA
+chromatograms.
 
 ## Installation
 
