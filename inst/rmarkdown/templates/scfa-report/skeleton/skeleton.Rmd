@@ -1,0 +1,271 @@
+---
+title: "SCFA report - `r params$project_id`"
+author: "Microbiome Insights"
+date: "`r format(Sys.time(), '%d %B, %Y')`"
+params:
+  project_id: "P-00UH"
+  sample_type: "Plasma"
+  scfa_dir: "chromatograms"
+  manifest_path: "P-00UH_manifest.xlsx"
+  analytes: !expr scfaReporter::default_scfa_analytes()
+  normalization_multiplier: 7
+  normalization_basis: "mmol_per_L_plasma"
+  stats: "lmer"   # options: lmer, anova, none
+  lmer_formula: !expr value ~ Group * Time + (1 | Subject_ID)
+  aov_formula: !expr NULL
+  x_col: "Group"
+  facet_col: "Time"
+  y_label: "mmol SCFA / L plasma"
+  export_csv: true
+format:
+  html:
+    theme: cerulean
+    highlight: tango
+    toc: true
+    toc-depth: 2
+    toc-location: left
+    code-fold: true
+    embed-resources: true
+execute:
+  warning: false
+  message: false
+  echo: false
+---
+
+::: {.callout-note}
+Make sure `scfaReporter` is installed and that the `scfa_dir` parameter points to
+Chromeleon `.xls` exports while `manifest_path` points to the metadata workbook.
+:::
+
+```{r setup}
+required_params <- c("project_id", "scfa_dir", "manifest_path")
+missing <- required_params[vapply(required_params, function(x) {
+  val <- params[[x]]
+  is.null(val) || identical(val, "")
+}, logical(1))]
+if (length(missing) > 0) {
+  stop("Missing required parameters: ", paste(missing, collapse = ", "), call. = FALSE)
+}
+
+library(scfaReporter)
+library(dplyr)
+library(ggplot2)
+library(kableExtra)
+library(tidyr)
+
+`%||%` <- function(x, y) if (is.null(x) || length(x) == 0) y else x
+
+aov_formula <- params$aov_formula
+if (is.character(aov_formula) && nzchar(aov_formula)) {
+  aov_formula <- stats::as.formula(aov_formula)
+}
+
+lmer_formula <- params$lmer_formula
+if (is.character(lmer_formula) && nzchar(lmer_formula)) {
+  lmer_formula <- stats::as.formula(lmer_formula)
+}
+
+pipeline <- scfaReporter::run_scfa_pipeline(
+  scfa_dir = params$scfa_dir,
+  manifest_path = params$manifest_path,
+  analytes = params$analytes,
+  normalization_multiplier = params$normalization_multiplier,
+  normalization_basis = params$normalization_basis,
+  stats = params$stats,
+  lmer_formula = lmer_formula,
+  aov_formula = aov_formula,
+  x_col = params$x_col,
+  facet_col = params$facet_col,
+  y_label = params$y_label
+)
+
+normalized_data <- pipeline$normalized
+summary_tbl <- pipeline$summary
+plots <- pipeline$plots
+models <- pipeline$models
+scfa_long <- pipeline$long
+
+group_levels <- levels(scfa_long$Group)
+time_levels <- levels(scfa_long$Time)
+
+description_lookup <- list(
+  lmer = "Box-and-whisker plots display the data for each acid. For every SCFA we fitted a linear mixed-effects model with **Group** and **Time** main effects plus their interaction, along with subject-specific random intercepts. Post-hoc contrasts were obtained with the **emmeans** package.",
+  anova = "Box-and-whisker plots display the data for each acid. Analysis of variance (ANOVA) was performed to assess statistical differences among variables, followed by Tukey's HSD pairwise comparisons.",
+  none = "The per-sample short-chain fatty acid (SCFA) content is summarized below."
+)
+stat_description <- description_lookup[[params$stats]] %||% description_lookup$none
+```
+
+```{r export-data}
+if (isTRUE(params$export_csv)) {
+  message("Writing normalized concentrations to scfa_concentration_normalized.csv")
+  utils::write.csv(
+    normalized_data,
+    file = "scfa_concentration_normalized.csv",
+    row.names = FALSE
+  )
+}
+```
+
+# Summary of SCFA data (`r params$y_label`)
+
+This study evaluates `r params$sample_type` SCFA measurements for project `r params$project_id`.
+Short-chain fatty acids were quantified using GC-FID and normalized to
+`r params$y_label`.
+
+## Summarised Statistics
+
+```{r summary-table}
+knitr::kable(
+  summary_tbl,
+  digits = c(0, 0, 0, 0, 0, 2, 2, 2, 2, 2),
+  col.names = c("SCFA", "Group", "Time", "Samples", "Subjects", "Mean", "SD", "SEM", "Min", "Max")
+) %>%
+  kableExtra::kable_styling(bootstrap_options = c("striped", "hover", "condensed", "responsive"))
+```
+
+# SCFA concentrations
+
+`r stat_description`
+
+## Visualization
+
+```{r plots}
+cat("::: {.panel-tabset}\n\n")
+for (name in names(plots)) {
+  cat("### ", name, "\n\n", sep = "")
+  print(plots[[name]])
+  cat("\n")
+}
+cat(":::\n")
+```
+
+## Statistical analysis
+
+::: {.panel-tabset}
+```{r stats}
+if (params$stats == "lmer") {
+  for (name in names(models)) {
+    model_info <- models[[name]]
+    cat("\n### ", name, "\n", sep = "")
+    if (!is.null(model_info$anova) && nrow(model_info$anova) > 0) {
+      cat("\n#### Fixed effects (Type III ANOVA)\n")
+      knitr::kable(model_info$anova, digits = 3) %>%
+        kableExtra::kable_styling(bootstrap_options = c("striped", "hover", "condensed", "responsive")) %>%
+        print()
+    }
+    if (!is.null(model_info$coefficients) && "Estimate" %in% colnames(model_info$coefficients)) {
+      cat("\n#### Model coefficients\n")
+      coef_view <- model_info$coefficients %>%
+        dplyr::select(Term, Estimate, `Std. Error`, df, `t value`, `Pr(>|t|)`) %>%
+        dplyr::rename(`p value` = `Pr(>|t|)`)
+      knitr::kable(coef_view, digits = 3) %>%
+        kableExtra::kable_styling(bootstrap_options = c("striped", "hover", "condensed", "responsive")) %>%
+        print()
+    }
+    if (!is.null(model_info$group_contrasts)) {
+      cat("\n#### Group contrasts (Tukey-adjusted)\n")
+      knitr::kable(model_info$group_contrasts, digits = 3) %>%
+        kableExtra::kable_styling(bootstrap_options = c("striped", "hover", "condensed", "responsive")) %>%
+        print()
+    }
+    if (!is.null(model_info$time_contrasts)) {
+      cat("\n#### Time contrasts (Tukey-adjusted)\n")
+      knitr::kable(model_info$time_contrasts, digits = 3) %>%
+        kableExtra::kable_styling(bootstrap_options = c("striped", "hover", "condensed", "responsive")) %>%
+        print()
+    }
+  }
+} else if (params$stats == "anova") {
+  for (name in names(models)) {
+    model_info <- models[[name]]
+    if (is.null(model_info$aov)) next
+    cat("\n### ", name, "\n", sep = "")
+    knitr::kable(model_info$aov, digits = 3) %>%
+      kableExtra::kable_styling(bootstrap_options = c("striped", "hover", "condensed", "responsive")) %>%
+      print()
+    if (!is.null(model_info$tukey)) {
+      cat("\n#### Tukey HSD\n")
+      tukey_df <- model_info$tukey[[1]]
+      knitr::kable(tukey_df, digits = 3) %>%
+        kableExtra::kable_styling(bootstrap_options = c("striped", "hover", "condensed", "responsive")) %>%
+        print()
+    }
+  }
+} else {
+  cat("Statistical modeling was disabled (params$stats = 'none').")
+}
+```
+:::
+
+# Methods
+
+```{r methods}
+method <- list()
+method[["mouse_feces"]] <- "The procedure for SCFA extraction follows the protocol described by Zhao et al. [-@zhao2006rapid]. Mouse fecal pellets were resuspended in MilliQ-grade water and homogenized using an MP Bio FastPrep system for 1 minute at 4.0 m/s. The suspensions were acidified to a final pH of 2.0 using 5M HCl. After acidification, the suspensions were incubated and centrifuged at 10,000 RPM to separate the supernatant. The resulting supernatant was spiked with 2-ethylbutyric acid to achieve a final concentration of 1 mM."
+method[["human_feces"]] <- "The procedure for SCFA extraction follows the protocol described by Zhao et al. [-@zhao2006rapid]. Human fecal samples were resuspended in MilliQ-grade water and homogenized using an MP Bio FastPrep system for 1 minute at 4.0 m/s. The suspensions were acidified to a final pH of 2.0 using 5M HCl. After acidification, the suspensions were incubated and centrifuged at 10,000 RPM to separate the supernatant. The resulting supernatant was spiked with 2-ethylbutyric acid to achieve a final concentration of 1 mM."
+method[["feces"]] <- method[["human_feces"]]
+method[["other"]] <- "The procedure for SCFA extraction is based on the protocol described by Zhao et al. [-@zhao2006rapid]. The material was resuspended in MilliQ-grade water and homogenized using an MP Bio FastPrep system for 1 minute at 4.0 m/s. The suspensions were acidified to a final pH of 2.0 using 5M HCl. After acidification, the suspensions were incubated and centrifuged at 10,000 RPM to separate the supernatant. The resulting supernatant was spiked with 2-ethylbutyric acid to achieve a final concentration of 1 mM."
+```
+
+`r method[[params$sample_type]] %||% method[["other"]]`
+
+# Reagents
+
+```{r reagents}
+reagents <- data.frame(
+  Component = c(
+    "Acetic Acid",
+    "Propionic Acid",
+    "Isobutyric Acid",
+    "Butyric Acid",
+    "Isovaleric Acid",
+    "Valeric Acid",
+    "Hexanoic Acid",
+    "Heptanoic Acid",
+    "2-Ethylbutyric Acid"
+  ),
+  Catalogue = c(
+    "LC101001-Glacial", "94425-5ML-F",
+    "I1754-100ML",
+    "B103500-100ML",
+    "129542-100ML",
+    "240370-5ML",
+    "153745-100G",
+    "75190-100ML",
+    "109959-100ML"
+  )
+)
+
+cocktail <- data.frame(
+  Component = c(
+    "Acetic Acid",
+    "Propionic Acid",
+    "Butyric Acid",
+    "Isobutyric Acid",
+    "Isovaleric Acid",
+    "Valeric Acid",
+    "Hexanoic Acid",
+    "Heptanoic Acid"
+  ),
+  Standard.1 = c(40, 20, 5, 1, 1, 1, 0.5, 0.5),
+  Standard.2 = c(8, 4, 1, 0.2, 0.2, 0.2, 0.1, 0.1),
+  Standard.3 = c(1.6, 0.8, 0.2, 0.04, 0.04, 0.04, 0.02, 0.02),
+  Standard.4 = c(0.32, 0.16, 0.04, 0.008, 0.008, 0.008, 0.004, 0.004)
+)
+```
+
+```{r reagents-table}
+knitr::kable(reagents, row.names = FALSE) %>%
+  kableExtra::kable_styling(bootstrap_options = c("striped", "hover", "condensed", "responsive"))
+```
+
+```{r cocktail-table}
+knitr::kable(cocktail, row.names = FALSE) %>%
+  kableExtra::kable_styling(bootstrap_options = c("striped", "hover", "condensed", "responsive"))
+```
+
+# References
+
+Zhao, Guohua, Margareta Nyman, and Jan Åke Jönsson. 2006. “Rapid Determination of Short-Chain Fatty Acids in Colonic Contents and Faeces of Humans and Rats by Acidified Water-Extraction and Direct-Injection Gas Chromatography.” Biomedical Chromatography 20 (8): 674–82.
+```

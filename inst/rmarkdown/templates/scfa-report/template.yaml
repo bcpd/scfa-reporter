@@ -1,0 +1,4 @@
+name: SCFA Report
+description: >
+  Standardized short chain fatty acid analysis report
+create_dir: true

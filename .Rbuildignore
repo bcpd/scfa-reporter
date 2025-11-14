@@ -6,4 +6,10 @@
 ^docs$
 ^pkgdown$
 ^\.pre-commit-config\.yaml$
+^\.github$
+^prototype$
+^scripts$
+^skills\.md$
+^README\.html$
+^reports$
 ^codemeta\.json$

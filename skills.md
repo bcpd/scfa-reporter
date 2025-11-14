@@ -5,7 +5,7 @@ This repository is for an R package that generates standardized short chain fatt
 High-level goals:
 
 - Wrap existing SCFA analysis scripts into a reusable R package: `scfaReporter`.
-- Use a Quarto `.qmd` report (currently `SCFA_report_P00UH_agent.qmd`) as a parameterised reporting template.
+- Use a Quarto `.qmd` report (currently `SCFA_report_template.qmd`) as a parameterised reporting template.
 - Support normalization (e.g. mg/kg material, mg/µL DNA), plots by group, and ANOVA / linear mixed models with Tukey all-pairs post-hoc, as well as no statistical testing.
 
 The assistant should use the skills defined below to edit files and suggest commands, keeping the package `R CMD check` clean and tests passing.
@@ -64,7 +64,7 @@ When to use:
 - After the package skeleton exists and the raw SCFA scripts are present in the repo (under `scripts/`).
 
 Inputs:
-- Existing scripts inside qmd chunks such as:
+- Existing scripts inside qmd chunks:
   - `load data`
   - `normalize data`
   - `prepare the plots and perform statistics`
@@ -123,13 +123,13 @@ Output:
 ## Skill: wrap_scfa_qmd_as_template
 
 Goal:
-- Convert the existing SCFA report file `SCFA_report_P00UH_agent.qmd` into a reusable package template that calls the package API instead of raw scripts.
+- Convert the existing SCFA report file `SCFA_report_template.qmd` into a reusable package template that calls the package API instead of raw scripts.
 
 When to use:
 - After the SCFA functions in `R/` exist and can be called programmatically.
 
 Inputs:
-- The existing Quarto report file: `SCFA_report_P00UH_agent.qmd`.
+- The existing Quarto report file: `SCFA_report_template.qmd`.
 
 Steps:
 1. Create the directory structure for an R Markdown / Quarto template:
@@ -143,7 +143,7 @@ Steps:
      Standardized short chain fatty acid analysis report
    create_dir: true
 ```
-3. Move or copy `SCFA_report_P00UH_agent.qmd` into `skeleton/skeleton.qmd`.
+3. Move or copy `SCFA_report_template.qmd` into `skeleton/skeleton.qmd`.
 4. Edit `template.yaml` so it defines a template named “SCFA Report” with a short description and `create_dir: true`.
 5. In `skeleton.qmd`, keep the report structure and formatting but:
    - Add a `params` section in the YAML header for inputs such as:
