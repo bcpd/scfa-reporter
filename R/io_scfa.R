@@ -7,17 +7,21 @@
 #' @param skip Number of header rows to skip before the peak table (defaults to `39`).
 #' @param sample_col Name of the column that will hold the sample identifier in
 #'   the returned tibble.
+#' @param read_fun Function used to read each chromatogram workbook (defaults to
+#'   [readxl::read_xls()]).
 #'
 #' @return A tibble where each row represents one chromatogram/sample and each
 #'   column represents a quantified SCFA peak.
 #' @export
+#' @importFrom dplyr %>%
 #'
 #' @examples
 #' \dontrun{
 #' chromatograms <- read_scfa_raw("chromatograms")
 #' }
 read_scfa_raw <- function(dir = ".", subset_pattern = NULL, sheet = "Integration",
-                          skip = 39, sample_col = "Sample") {
+                          skip = 39, sample_col = "Sample",
+                          read_fun = readxl::read_xls) {
   if (!dir.exists(dir)) {
     stop("Directory '", dir, "' does not exist.", call. = FALSE)
   }
@@ -31,23 +35,24 @@ read_scfa_raw <- function(dir = ".", subset_pattern = NULL, sheet = "Integration
   }
 
   samples <- lapply(files, function(path) {
-    dat <- readxl::read_xls(path = path, sheet = sheet, skip = skip, progress = FALSE)
-    if (!all(c("Peak.Name", "Amount") %in% names(dat))) {
-      stop("Peak.Name and Amount columns were not found in ", basename(path), call. = FALSE)
+    dat <- read_fun(path = path, sheet = sheet, skip = skip, progress = FALSE) %>%
+      janitor::clean_names()
+    if (!all(c("peak_name", "amount") %in% names(dat))) {
+      stop("peak_name and amount columns were not found in ", basename(path), call. = FALSE)
     }
-    dat <- dat[, c("Peak.Name", "Amount")]
-    dat$Amount <- suppressWarnings(as.numeric(dat$Amount))
+    dat <- dat[, c("peak_name", "amount")]
+    dat$amount <- suppressWarnings(as.numeric(dat$amount))
     dat <- stats::na.omit(dat)
-    dat <- dat[dat$Peak.Name != "", ]
+    dat <- dat[dat$peak_name != "", ]
     sample_name <- tools::file_path_sans_ext(basename(path))
-    stats::setNames(dat, c("Peak.Name", sample_name))
+    stats::setNames(dat, c("peak_name", sample_name))
   })
 
-  combined <- Reduce(function(x, y) dplyr::full_join(x, y, by = "Peak.Name"), samples)
-  combined <- combined[!combined$Peak.Name %in% c("Component 2", "2-Ethylbutyric Acid"), ]
+  combined <- Reduce(function(x, y) dplyr::full_join(x, y, by = "peak_name"), samples)
+  combined <- combined[!combined$peak_name %in% c("Component 2", "2-Ethylbutyric Acid"), ]
 
   matrix <- as.data.frame(t(combined[, -1]), stringsAsFactors = FALSE)
-  colnames(matrix) <- combined$Peak.Name
+  colnames(matrix) <- combined$peak_name
   matrix <- tibble::rownames_to_column(matrix, var = sample_col)
   matrix[is.na(matrix)] <- 0
   tibble::as_tibble(matrix)

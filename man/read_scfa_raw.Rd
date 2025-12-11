@@ -9,7 +9,8 @@ read_scfa_raw(
   subset_pattern = NULL,
   sheet = "Integration",
   skip = 39,
-  sample_col = "Sample"
+  sample_col = "Sample",
+  read_fun = readxl::read_xls
 )
 }
 \arguments{
@@ -24,6 +25,9 @@ should be imported. When \code{NULL} (default) all \code{.xls} files are used.}
 
 \item{sample_col}{Name of the column that will hold the sample identifier in
 the returned tibble.}
+
+\item{read_fun}{Function used to read each chromatogram workbook (defaults to
+\code{readxl::read_xls()}).}
 }
 \value{
 A tibble where each row represents one chromatogram/sample and each

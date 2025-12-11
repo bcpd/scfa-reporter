@@ -20,6 +20,7 @@ Imports:
     dplyr,
     emmeans,
     ggplot2,
+    janitor,
     lmerTest,
     quarto,
     lmerTest,
@@ -29,6 +30,7 @@ Imports:
     tidyr
 Suggests:
     testthat (>= 3.0.0),
+    withr,
     rmarkdown,
     knitr
 Config/testthat/edition: 3
