@@ -130,15 +130,17 @@ knitr::kable(
 
 ## Visualization
 
+::: {.panel-tabset}
 ```{r plots}
-cat("::: {.panel-tabset}\n\n")
+#cat("::: {.panel-tabset}\n\n")
 for (name in names(plots)) {
   cat("### ", name, "\n\n", sep = "")
   print(plots[[name]])
   cat("\n")
 }
-cat(":::\n")
+#cat(":::\n")
 ```
+:::
 
 ## Statistical analysis
 
