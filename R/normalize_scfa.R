@@ -22,10 +22,12 @@
 #' }
 normalize_scfa <- function(data,
                            analytes,
-                           basis = c("as_is", "mmol_per_L_plasma", "mg_per_kg"),
+                           basis = c("as_is", "mmol_per_L_plasma", "mg_per_kg", "mg_per_kg_stool"),
                            multiplier = 1,
                            transform_fn = NULL,
                            fill = 0) {
+  data <- janitor::clean_names(data)
+  analytes <- janitor::make_clean_names(analytes)
   basis <- match.arg(basis)
   stopifnot(is.numeric(multiplier), length(multiplier) == 1)
   if (!all(analytes %in% names(data))) {

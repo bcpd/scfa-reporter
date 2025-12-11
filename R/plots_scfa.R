@@ -13,13 +13,22 @@
 #' @importFrom rlang .data
 #' @export
 plot_scfa_panels <- function(scfa_long,
-                             analyte_col = "Analyte",
+                             analyte_col = "analyte",
                              value_col = "value",
-                             x_col = "Group",
+                             x_col = "group",
                              facet_col = NULL,
                              colour_col = x_col,
                              y_label = "SCFA concentration",
                              palette = c("#009E73", "#E79F00", "#9AD0F3", "#0072B2", "#D55E00", "#CC79A7")) {
+  scfa_long <- janitor::clean_names(scfa_long)
+  analyte_col <- janitor::make_clean_names(analyte_col)
+  value_col <- janitor::make_clean_names(value_col)
+  x_col <- janitor::make_clean_names(x_col)
+  colour_col <- janitor::make_clean_names(colour_col)
+  if (!is.null(facet_col)) {
+    facet_col <- janitor::make_clean_names(facet_col)
+  }
+
   analytes <- unique(scfa_long[[analyte_col]])
   plots <- vector("list", length = length(analytes))
   names(plots) <- analytes

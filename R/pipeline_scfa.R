@@ -3,17 +3,37 @@
 #' @return Character vector with ordered analyte names.
 #' @export
 default_scfa_analytes <- function() {
-  c(
-    "Acetic.Acid",
-    "Propionic.Acid",
-    "Isobutyric.Acid",
-    "Butyric.Acid",
-    "Isovaleric.Acid",
-    "Valeric.Acid",
-    "Hexanoic.Acid",
-    "Heptanoic.Acid",
-    "Isocaproic.acid"
+  janitor::make_clean_names(
+    c(
+      "Acetic Acid",
+      "Propionic Acid",
+      "Isobutyric Acid",
+      "Butyric Acid",
+      "Isovaleric Acid",
+      "Valeric Acid",
+      "Hexanoic Acid",
+      "Heptanoic Acid",
+      "Isocaproic acid"
+    )
   )
+}
+
+clean_formula_vars <- function(formula) {
+  if (is.null(formula) || !inherits(formula, "formula")) {
+    return(formula)
+  }
+  vars <- all.vars(formula)
+  replacements <- janitor::make_clean_names(vars)
+  names(replacements) <- vars
+  formula_str <- paste(deparse(formula), collapse = " ")
+  for (i in seq_along(vars)) {
+    formula_str <- gsub(
+      paste0("\\b", vars[[i]], "\\b"),
+      replacements[[i]],
+      formula_str
+    )
+  }
+  stats::as.formula(formula_str)
 }
 
 #' High-level helper that runs the SCFA processing pipeline
@@ -60,14 +80,21 @@ run_scfa_pipeline <- function(scfa_dir,
                               normalization_basis = "mmol_per_L_plasma",
                               normalization_multiplier = 1,
                               stats = c("lmer", "anova", "none"),
-                              lmer_formula = value ~ Group * Time + (1 | Subject_ID),
+                              lmer_formula = value ~ group * time + (1 | subject_id),
                               aov_formula = NULL,
-                              x_col = "Group",
-                              facet_col = "Time",
+                              x_col = "group",
+                              facet_col = "time",
                               y_label = "SCFA concentration",
                               scfa_data = NULL,
                               manifest = NULL) {
   stats <- match.arg(stats)
+  analytes <- janitor::make_clean_names(analytes)
+  x_col <- janitor::make_clean_names(x_col)
+  if (!is.null(facet_col)) {
+    facet_col <- janitor::make_clean_names(facet_col)
+  }
+  aov_formula <- clean_formula_vars(aov_formula)
+  lmer_formula <- clean_formula_vars(lmer_formula)
 
   if (is.null(scfa_data)) {
     if (missing(scfa_dir)) {
@@ -75,7 +102,10 @@ run_scfa_pipeline <- function(scfa_dir,
     }
     raw_data <- read_scfa_raw(dir = scfa_dir, subset_pattern = subset_pattern)
   } else {
-    raw_data <- scfa_data
+    if (!is.data.frame(scfa_data)) {
+      stop("'scfa_data' must be a data frame/tibble.", call. = FALSE)
+    }
+    raw_data <- janitor::clean_names(scfa_data)
   }
 
   if (is.null(manifest)) {
@@ -84,7 +114,10 @@ run_scfa_pipeline <- function(scfa_dir,
     }
     manifest_tbl <- read_scfa_manifest(manifest_path)
   } else {
-    manifest_tbl <- manifest
+    if (!is.data.frame(manifest)) {
+      stop("'manifest' must be a data frame/tibble.", call. = FALSE)
+    }
+    manifest_tbl <- janitor::clean_names(manifest)
   }
 
   merged <- merge_scfa_data(raw_data, manifest_tbl)

@@ -1,3 +1,24 @@
+standardize_manifest_names <- function(manifest) {
+  rename_first_match <- function(df, target, candidates) {
+    hit <- intersect(candidates, names(df))
+    if (length(hit) == 0) {
+      return(df)
+    }
+    from <- hit[[1]]
+    if (from != target) {
+      names(df)[names(df) == from] <- target
+    }
+    df
+  }
+
+  manifest <- rename_first_match(manifest, "mbi_sample_id", c("mbi_sample_id", "sample_id", "sample"))
+  manifest <- rename_first_match(manifest, "your_sample_id", c("your_sample_id", "your_sampleid"))
+  manifest <- rename_first_match(manifest, "subject_id", c("subject_id", "subjectid", "subject", "participant_id"))
+  manifest <- rename_first_match(manifest, "group", c("group", "treatment_group", "study_group"))
+  manifest <- rename_first_match(manifest, "time", c("time", "time_point", "timepoint", "visit", "week", "day"))
+  manifest
+}
+
 #' Read chromatogram exports for SCFA quantification
 #'
 #' @param dir Directory that contains Thermo Chromeleon `.xls` exports.
@@ -6,7 +27,7 @@
 #' @param sheet Sheet name inside each workbook (defaults to `"Integration"`).
 #' @param skip Number of header rows to skip before the peak table (defaults to `39`).
 #' @param sample_col Name of the column that will hold the sample identifier in
-#'   the returned tibble.
+#'   the returned tibble (will be cleaned with [janitor::make_clean_names()]).
 #' @param read_fun Function used to read each chromatogram workbook (defaults to
 #'   [readxl::read_xls()]).
 #'
@@ -34,6 +55,8 @@ read_scfa_raw <- function(dir = ".", subset_pattern = NULL, sheet = "Integration
     stop("No .xls chromatogram files were found in ", dir, call. = FALSE)
   }
 
+  sample_col_clean <- janitor::make_clean_names(sample_col)
+
   samples <- lapply(files, function(path) {
     dat <- read_fun(path = path, sheet = sheet, skip = skip, progress = FALSE) %>%
       janitor::clean_names()
@@ -53,7 +76,8 @@ read_scfa_raw <- function(dir = ".", subset_pattern = NULL, sheet = "Integration
 
   matrix <- as.data.frame(t(combined[, -1]), stringsAsFactors = FALSE)
   colnames(matrix) <- combined$peak_name
-  matrix <- tibble::rownames_to_column(matrix, var = sample_col)
+  matrix <- tibble::rownames_to_column(matrix, var = sample_col_clean)
+  matrix <- janitor::clean_names(matrix)
   matrix[is.na(matrix)] <- 0
   tibble::as_tibble(matrix)
 }
@@ -77,9 +101,19 @@ read_scfa_manifest <- function(path, sheet = "Sample Sheet", skip = 20) {
     stop("Manifest file '", path, "' does not exist.", call. = FALSE)
   }
   manifest <- readxl::read_xlsx(path = path, sheet = sheet, skip = skip, progress = FALSE)
-  manifest <- tibble::as_tibble(manifest)
-  manifest$Subject_ID <- gsub("-T[0-9]+$", "", manifest$Your.Sample.ID)
-  manifest$Subject_ID[is.na(manifest$Subject_ID) | manifest$Subject_ID == ""] <- manifest$MBI.Sample.ID
+  manifest <- manifest %>%
+    janitor::clean_names() %>%
+    tibble::as_tibble() %>%
+    standardize_manifest_names()
+
+  required_cols <- c("your_sample_id", "mbi_sample_id")
+  if (!all(required_cols %in% names(manifest))) {
+    missing <- required_cols[!required_cols %in% names(manifest)]
+    stop("Manifest is missing columns: ", paste(missing, collapse = ", "), call. = FALSE)
+  }
+
+  manifest$subject_id <- gsub("-t[0-9]+$", "", manifest$your_sample_id, ignore.case = TRUE)
+  manifest$subject_id[is.na(manifest$subject_id) | manifest$subject_id == ""] <- manifest$mbi_sample_id
   manifest
 }
 
@@ -101,15 +135,21 @@ read_scfa_manifest <- function(path, sheet = "Sample Sheet", skip = 20) {
 #' }
 merge_scfa_data <- function(scfa_data,
                             manifest,
-                            sample_id_col = "MBI.Sample.ID",
-                            sample_col = "Sample") {
-  if (!sample_col %in% names(scfa_data)) {
-    stop("Column '", sample_col, "' was not found in scfa_data.", call. = FALSE)
+                            sample_id_col = "mbi_sample_id",
+                            sample_col = "sample") {
+  scfa_data <- janitor::clean_names(scfa_data)
+  manifest <- janitor::clean_names(manifest)
+
+  sample_id_clean <- janitor::make_clean_names(sample_id_col)
+  sample_col_clean <- janitor::make_clean_names(sample_col)
+
+  if (!sample_col_clean %in% names(scfa_data)) {
+    stop("Column '", sample_col_clean, "' was not found in scfa_data.", call. = FALSE)
   }
-  if (!sample_id_col %in% names(manifest)) {
-    stop("Column '", sample_id_col, "' was not found in manifest.", call. = FALSE)
+  if (!sample_id_clean %in% names(manifest)) {
+    stop("Column '", sample_id_clean, "' was not found in manifest.", call. = FALSE)
   }
   join_ready <- scfa_data
-  names(join_ready)[names(join_ready) == sample_col] <- sample_id_col
-  dplyr::left_join(manifest, join_ready, by = sample_id_col)
+  names(join_ready)[names(join_ready) == sample_col_clean] <- sample_id_clean
+  dplyr::left_join(manifest, join_ready, by = sample_id_clean)
 }

@@ -3,7 +3,9 @@
 #' @param data Tibble that contains SCFA measurements.
 #' @param analytes Character vector with the analyte column names.
 #' @param id_cols Character vector with metadata columns that should remain
-#'   untouched when pivoting.
+#'   untouched when pivoting. When `NULL` (default), commonly used columns
+#'   present in `data` (`mbi_sample_id`, `subject_id`, `group`, `time`) are
+#'   detected automatically.
 #' @param analyte_col Name of the resulting analyte column (defaults to
 #'   `"Analyte"`).
 #' @param value_col Name of the resulting value column (defaults to `"value"`).
@@ -17,10 +19,36 @@
 #' }
 scfa_long_format <- function(data,
                              analytes,
-                             id_cols = c("MBI.Sample.ID", "Subject_ID", "Group", "Time"),
-                             analyte_col = "Analyte",
+                             id_cols = NULL,
+                             analyte_col = "analyte",
                              value_col = "value") {
-  stopifnot(all(id_cols %in% names(data)))
+  data <- janitor::clean_names(data)
+  analytes <- janitor::make_clean_names(analytes)
+  analyte_col <- janitor::make_clean_names(analyte_col)
+  value_col <- janitor::make_clean_names(value_col)
+
+  if (is.null(id_cols)) {
+    id_cols <- intersect(
+      c("mbi_sample_id", "subject_id", "group", "time"),
+      names(data)
+    )
+  } else {
+    id_cols <- janitor::make_clean_names(id_cols)
+  }
+
+  missing_ids <- id_cols[!id_cols %in% names(data)]
+  if (length(missing_ids)) {
+    for (col in missing_ids) {
+      data[[col]] <- NA
+    }
+    if (!is.null(id_cols)) {
+      warning(
+        "Added missing id columns with NA values: ",
+        paste(missing_ids, collapse = ", ")
+      )
+    }
+  }
+
   result <- tidyr::pivot_longer(
     data = data,
     cols = dplyr::all_of(analytes),
@@ -44,11 +72,26 @@ scfa_long_format <- function(data,
 #' @importFrom rlang .data
 #' @export
 scfa_summary <- function(scfa_long,
-                         analyte_col = "Analyte",
-                         group_col = "Group",
-                         time_col = "Time",
-                         subject_col = "Subject_ID",
+                         analyte_col = "analyte",
+                         group_col = "group",
+                         time_col = "time",
+                         subject_col = "subject_id",
                          value_col = "value") {
+  scfa_long <- janitor::clean_names(scfa_long)
+  analyte_col <- janitor::make_clean_names(analyte_col)
+  group_col <- janitor::make_clean_names(group_col)
+  time_col <- janitor::make_clean_names(time_col)
+  subject_col <- janitor::make_clean_names(subject_col)
+  value_col <- janitor::make_clean_names(value_col)
+
+  needed <- c(analyte_col, group_col, time_col, subject_col, value_col)
+  missing_needed <- needed[!needed %in% names(scfa_long)]
+  if (length(missing_needed)) {
+    for (col in missing_needed) {
+      scfa_long[[col]] <- NA
+    }
+  }
+
   grouped <- dplyr::group_by(
     scfa_long,
     .data[[analyte_col]],
@@ -87,13 +130,19 @@ scfa_summary <- function(scfa_long,
 #' @export
 fit_scfa_models <- function(scfa_long,
                             stats = c("lmer", "anova", "none"),
-                            analyte_col = "Analyte",
+                            analyte_col = "analyte",
                             value_col = "value",
-                            lmer_formula = value ~ Group * Time + (1 | Subject_ID),
+                            lmer_formula = value ~ group * time + (1 | subject_id),
                             aov_formula = NULL,
-                            group_var = "Group",
-                            time_var = "Time") {
+                            group_var = "group",
+                            time_var = "time") {
   stats <- match.arg(stats)
+  scfa_long <- janitor::clean_names(scfa_long)
+  analyte_col <- janitor::make_clean_names(analyte_col)
+  value_col <- janitor::make_clean_names(value_col)
+  group_var <- janitor::make_clean_names(group_var)
+  time_var <- janitor::make_clean_names(time_var)
+
   split_data <- split(scfa_long, scfa_long[[analyte_col]])
 
   lapply(split_data, function(df) {

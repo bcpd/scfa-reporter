@@ -21,9 +21,9 @@
 #'   output_file = "demo1.html",
 #'   scfa_data = demo_scfa_dataset1,
 #'   manifest = demo_manifest_dataset1,
-#'   analytes = c("Acetic.Acid", "Propionic.Acid", "Butyric.Acid"),
+#'   analytes = c("acetic_acid", "propionic_acid", "butyric_acid"),
 #'   stats = "anova",
-#'   aov_formula = value ~ Group
+#'   aov_formula = value ~ group
 #' )
 #' }
 render_scfa_report <- function(
@@ -39,10 +39,10 @@ render_scfa_report <- function(
   normalization_multiplier = 1,
   normalization_basis = "as_is",
   stats = c("lmer", "anova", "none"),
-  lmer_formula = value ~ Group * Time + (1 | Subject_ID),
+  lmer_formula = value ~ group * time + (1 | subject_id),
   aov_formula = NULL,
-  x_col = "Group",
-  facet_col = "Time",
+  x_col = "group",
+  facet_col = "time",
   y_label = "SCFA concentration",
   export_csv = TRUE,
   ...
@@ -53,6 +53,21 @@ render_scfa_report <- function(
   }
   if (is.null(manifest) && is.null(manifest_path)) {
     stop("Provide either 'manifest' or 'manifest_path'.", call. = FALSE)
+  }
+
+  scfa_dir_normalized <- NULL
+  if (!is.null(scfa_dir)) {
+    if (!dir.exists(scfa_dir)) {
+      stop("Directory '", scfa_dir, "' does not exist.", call. = FALSE)
+    }
+    scfa_dir_normalized <- normalizePath(scfa_dir, winslash = "/", mustWork = TRUE)
+  }
+  manifest_path_normalized <- NULL
+  if (!is.null(manifest_path)) {
+    if (!file.exists(manifest_path)) {
+      stop("Manifest file '", manifest_path, "' does not exist.", call. = FALSE)
+    }
+    manifest_path_normalized <- normalizePath(manifest_path, winslash = "/", mustWork = TRUE)
   }
 
   template <- system.file(
@@ -86,8 +101,8 @@ render_scfa_report <- function(
   params <- list(
     project_id = project_id,
     sample_type = sample_type,
-    scfa_dir = scfa_dir,
-    manifest_path = manifest_path,
+    scfa_dir = if (is.null(scfa_dir_normalized)) scfa_dir else scfa_dir_normalized,
+    manifest_path = if (is.null(manifest_path_normalized)) manifest_path else manifest_path_normalized,
     analytes = analytes,
     normalization_multiplier = normalization_multiplier,
     normalization_basis = normalization_basis,

@@ -130,10 +130,10 @@ knitr::kable(
 
 ## Visualization
 
-```{r plots}
+```{r plots, echo=FALSE, results='asis'}
 cat("::: {.panel-tabset}\n\n")
 for (name in names(plots)) {
-  cat("### ", name, "\n\n", sep = "")
+  cat("\n### ", name, "\n\n", sep = "")
   print(plots[[name]])
   cat("\n")
 }

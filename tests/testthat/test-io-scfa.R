@@ -16,6 +16,6 @@ test_that("read_scfa_raw cleans chromatogram column names", {
     )
 
     expect_equal(result$sample_id, c("sample1", "sample2"))
-    expect_true(all(c("Acetic Acid", "Propionic Acid") %in% names(result)))
+    expect_true(all(c("acetic_acid", "propionic_acid") %in% names(result)))
   })
 })
