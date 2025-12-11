@@ -42,18 +42,18 @@ library(scfaReporter)
 demo1 <- run_scfa_pipeline(
   scfa_data = demo_scfa_dataset1,
   manifest = demo_manifest_dataset1,
-  analytes = c("Acetic.Acid", "Propionic.Acid", "Butyric.Acid"),
+  analytes = c("acetic_acid", "propionic_acid", "butyric_acid"),
   stats = "anova",
-  aov_formula = value ~ Group
+  aov_formula = value ~ group
 )
 
 # Demo dataset 2: longitudinal design
 demo2 <- run_scfa_pipeline(
   scfa_data = demo_scfa_dataset2,
   manifest = demo_manifest_dataset2,
-  analytes = c("Acetic.Acid", "Propionic.Acid", "Butyric.Acid"),
+  analytes = c("acetic_acid", "propionic_acid", "butyric_acid"),
   stats = "anova",
-  aov_formula = value ~ Group * Time
+  aov_formula = value ~ group * time
 )
 
 head(demo1$summary)
@@ -73,9 +73,9 @@ render_scfa_report(
   project_id = "Demo dataset 1",
   scfa_data = demo_scfa_dataset1,
   manifest = demo_manifest_dataset1,
-  analytes = c("Acetic.Acid", "Propionic.Acid", "Butyric.Acid"),
+  analytes = c("acetic_acid", "propionic_acid", "butyric_acid"),
   stats = "anova",
-  aov_formula = value ~ Group
+  aov_formula = value ~ group
 )
 
 # Real Chromeleon exports + manifest
@@ -87,7 +87,7 @@ render_scfa_report(
   normalization_multiplier = 7,
   normalization_basis = "mmol_per_L_plasma",
   stats = "lmer",
-  lmer_formula = value ~ Group * Time + (1 | Subject_ID)
+  lmer_formula = value ~ group * time + (1 | subject_id)
 )
 ```
 

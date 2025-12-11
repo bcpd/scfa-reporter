@@ -32,31 +32,31 @@ library(scfaReporter)
 demo1 <- run_scfa_pipeline(
   scfa_data = demo_scfa_dataset1,
   manifest = demo_manifest_dataset1,
-  analytes = c("Acetic.Acid", "Propionic.Acid", "Butyric.Acid"),
+  analytes = c("acetic_acid", "propionic_acid", "butyric_acid"),
   stats = "anova",
-  aov_formula = value ~ Group
+  aov_formula = value ~ group
 )
 
 # Demo dataset 2: longitudinal design
 demo2 <- run_scfa_pipeline(
   scfa_data = demo_scfa_dataset2,
   manifest = demo_manifest_dataset2,
-  analytes = c("Acetic.Acid", "Propionic.Acid", "Butyric.Acid"),
+  analytes = c("acetic_acid", "propionic_acid", "butyric_acid"),
   stats = "anova",
-  aov_formula = value ~ Group * Time
+  aov_formula = value ~ group * time
 )
 
 head(demo1$summary)
 #> # A tibble: 6 × 10
-#>   Analyte        Group Time  Samples Subjects  Mean    SD   SEM   Min   Max
-#>   <fct>          <fct> <fct>   <int>    <int> <dbl> <dbl> <dbl> <dbl> <dbl>
-#> 1 Acetic.Acid    A     T0         10       10  5.09 0.363 0.115  4.69  5.89
-#> 2 Acetic.Acid    B     T0         10       10  8.01 0.382 0.121  7.37  8.44
-#> 3 Propionic.Acid A     T0         10       10  2.81 0.452 0.143  2.16  3.61
-#> 4 Propionic.Acid B     T0         10       10  3.15 0.457 0.144  2.65  4.08
-#> 5 Butyric.Acid   A     T0         10       10  2.04 0.625 0.198  1.02  2.86
-#> 6 Butyric.Acid   B     T0         10       10  2.11 0.442 0.140  1.23  2.68
-demo2$plots$Butyric.Acid
+#>   analyte       group time  samples subjects  mean    sd   sem   min   max
+#>   <fct>         <fct> <fct>   <int>    <int> <dbl> <dbl> <dbl> <dbl> <dbl>
+#> 1 acetic_acid   A     T0         10       10  5.09 0.363 0.115  4.69  5.89
+#> 2 acetic_acid   B     T0         10       10  8.01 0.382 0.121  7.37  8.44
+#> 3 propionic_acid A     T0         10       10  2.81 0.452 0.143  2.16  3.61
+#> 4 propionic_acid B     T0         10       10  3.15 0.457 0.144  2.65  4.08
+#> 5 butyric_acid  A     T0         10       10  2.04 0.625 0.198  1.02  2.86
+#> 6 butyric_acid  B     T0         10       10  2.11 0.442 0.140  1.23  2.68
+demo2$plots$butyric_acid
 ```
 
 <img src="man/figures/README-example-1.png" width="100%" />
@@ -74,9 +74,9 @@ render_scfa_report(
   project_id = "Demo dataset 1",
   scfa_data = demo_scfa_dataset1,
   manifest = demo_manifest_dataset1,
-  analytes = c("Acetic.Acid", "Propionic.Acid", "Butyric.Acid"),
+  analytes = c("acetic_acid", "propionic_acid", "butyric_acid"),
   stats = "anova",
-  aov_formula = value ~ Group
+  aov_formula = value ~ group
 )
 
 # Real Chromeleon exports + manifest
@@ -88,7 +88,7 @@ render_scfa_report(
   normalization_multiplier = 7,
   normalization_basis = "mmol_per_L_plasma",
   stats = "lmer",
-  lmer_formula = value ~ Group * Time + (1 | Subject_ID)
+  lmer_formula = value ~ group * time + (1 | subject_id)
 )
 ```
 
