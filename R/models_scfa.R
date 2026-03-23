@@ -59,16 +59,25 @@ scfa_long_format <- function(data,
   result
 }
 
+clean_optional_name <- function(x) {
+  if (is.null(x) || identical(x, "")) {
+    return(NULL)
+  }
+  janitor::make_clean_names(x)
+}
+
 #' Generate descriptive statistics for each SCFA
 #'
 #' @param scfa_long Long-format tibble produced by [scfa_long_format()].
 #' @param analyte_col Name of the analyte column.
-#' @param group_col Grouping column, typically `"Group"`.
-#' @param time_col Time/visit column.
+#' @param group_col Grouping column.
+#' @param time_col Optional time/visit column. When `NULL` or absent in
+#'   `scfa_long`, the summary is aggregated by analyte and group only.
 #' @param subject_col Subject identifier column.
 #' @param value_col Measurement column.
 #'
-#' @return A tibble with counts and summary statistics per analyte/group/time.
+#' @return A tibble with counts and summary statistics per analyte/group, and
+#'   per analyte/group/time when a time column is available.
 #' @importFrom rlang .data
 #' @export
 scfa_summary <- function(scfa_long,
@@ -79,25 +88,30 @@ scfa_summary <- function(scfa_long,
                          value_col = "value") {
   scfa_long <- janitor::clean_names(scfa_long)
   analyte_col <- janitor::make_clean_names(analyte_col)
-  group_col <- janitor::make_clean_names(group_col)
-  time_col <- janitor::make_clean_names(time_col)
+  group_col <- clean_optional_name(group_col)
+  time_col <- clean_optional_name(time_col)
   subject_col <- janitor::make_clean_names(subject_col)
   value_col <- janitor::make_clean_names(value_col)
 
-  needed <- c(analyte_col, group_col, time_col, subject_col, value_col)
-  missing_needed <- needed[!needed %in% names(scfa_long)]
-  if (length(missing_needed)) {
-    for (col in missing_needed) {
-      scfa_long[[col]] <- NA
-    }
+  if (is.null(group_col)) {
+    stop("Provide a non-empty 'group_col'.", call. = FALSE)
+  }
+  if (!group_col %in% names(scfa_long)) {
+    stop("Column '", group_col, "' was not found in scfa_long.", call. = FALSE)
+  }
+  if (!subject_col %in% names(scfa_long)) {
+    scfa_long[[subject_col]] <- NA
+  }
+  if (!value_col %in% names(scfa_long)) {
+    scfa_long[[value_col]] <- NA
   }
 
-  grouped <- dplyr::group_by(
-    scfa_long,
-    .data[[analyte_col]],
-    .data[[group_col]],
-    .data[[time_col]]
-  )
+  grouping_cols <- c(analyte_col, group_col)
+  if (!is.null(time_col) && time_col %in% names(scfa_long)) {
+    grouping_cols <- c(grouping_cols, time_col)
+  }
+
+  grouped <- dplyr::group_by(scfa_long, !!!rlang::syms(grouping_cols))
   summarized <- dplyr::summarise(
     grouped,
     Samples = sum(!is.na(.data[[value_col]])),
@@ -109,30 +123,32 @@ scfa_summary <- function(scfa_long,
     Max = max(.data[[value_col]], na.rm = TRUE),
     .groups = "drop"
   )
-  dplyr::arrange(summarized, .data[[analyte_col]], .data[[time_col]], .data[[group_col]])
+  dplyr::arrange(summarized, !!!rlang::syms(grouping_cols))
 }
 
 #' Fit SCFA statistical models
 #'
 #' @param scfa_long Long-format tibble produced by [scfa_long_format()].
-#' @param stats Type of model to fit (`"lmer"`, `"anova"`, `"none"`).
+#' @param stats Type of model to fit (`"lmer"`, `"anova"`, `"lm"`, `"none"`).
 #' @param analyte_col Name of the analyte column.
 #' @param value_col Name of the measurement column.
 #' @param lmer_formula Formula passed to [lmerTest::lmer()] when `stats = "lmer"`.
+#' @param lm_formula Formula passed to [stats::lm()] when `stats = "lm"`.
 #' @param aov_formula Formula passed to [stats::aov()] when `stats = "anova"`.
 #' @param group_var Column used for group contrasts.
-#' @param time_var Column used for time contrasts.
+#' @param time_var Optional column used for time contrasts.
 #'
 #' @return A named list where each element contains the fitted model,
-#'   ANOVA table, coefficients, and emmeans contrasts for a single analyte.
+#'   model tests, coefficients, and emmeans contrasts for a single analyte.
 #' @importFrom lmerTest lmer
 #' @importFrom emmeans emmeans contrast
 #' @export
 fit_scfa_models <- function(scfa_long,
-                            stats = c("lmer", "anova", "none"),
+                            stats = c("lmer", "anova", "lm", "none"),
                             analyte_col = "analyte",
                             value_col = "value",
                             lmer_formula = value ~ group * time + (1 | subject_id),
+                            lm_formula = NULL,
                             aov_formula = NULL,
                             group_var = "group",
                             time_var = "time") {
@@ -140,8 +156,16 @@ fit_scfa_models <- function(scfa_long,
   scfa_long <- janitor::clean_names(scfa_long)
   analyte_col <- janitor::make_clean_names(analyte_col)
   value_col <- janitor::make_clean_names(value_col)
-  group_var <- janitor::make_clean_names(group_var)
-  time_var <- janitor::make_clean_names(time_var)
+  group_var <- clean_optional_name(group_var)
+  time_var <- clean_optional_name(time_var)
+
+  if (is.null(group_var)) {
+    stop("Provide a non-empty 'group_var'.", call. = FALSE)
+  }
+
+  if (stats == "lm" && is.null(lm_formula)) {
+    stop("Provide 'lm_formula' when stats = 'lm'.", call. = FALSE)
+  }
 
   split_data <- split(scfa_long, scfa_long[[analyte_col]])
 
@@ -166,20 +190,79 @@ fit_scfa_models <- function(scfa_long,
         anova_tbl <- as.data.frame(stats::anova(fit, type = 3), stringsAsFactors = FALSE)
         anova_tbl <- tibble::rownames_to_column(anova_tbl, "Term")
         out$anova <- tibble::as_tibble(anova_tbl)
-        emm_group <- emmeans::emmeans(
-          fit,
-          specs = stats::as.formula(paste("~", group_var, "|", time_var))
+        if (group_var %in% names(df)) {
+          emm_group <- tryCatch(
+            emmeans::emmeans(
+              fit,
+              specs = if (!is.null(time_var) && time_var %in% names(df)) {
+                stats::as.formula(paste("~", group_var, "|", time_var))
+              } else {
+                stats::as.formula(paste("~", group_var))
+              }
+            ),
+            error = identity
+          )
+          if (!inherits(emm_group, "error")) {
+            out$group_contrasts <- as.data.frame(
+              emmeans::contrast(emm_group, method = "pairwise", adjust = "tukey")
+            )
+          }
+        }
+        if (!is.null(time_var) && time_var %in% names(df)) {
+          emm_time <- tryCatch(
+            emmeans::emmeans(
+              fit,
+              specs = stats::as.formula(paste("~", time_var, "|", group_var))
+            ),
+            error = identity
+          )
+          if (!inherits(emm_time, "error")) {
+            out$time_contrasts <- as.data.frame(
+              emmeans::contrast(emm_time, method = "pairwise", adjust = "tukey")
+            )
+          }
+        }
+      }
+    }
+
+    if (stats == "lm") {
+      fit <- tryCatch(
+        stats::lm(formula = lm_formula, data = df),
+        error = identity
+      )
+      if (inherits(fit, "error")) {
+        out$model <- NULL
+        out$coefficients <- tibble::tibble(Term = "Model", Message = fit$message)
+      } else {
+        out$model <- fit
+        coef_tbl <- as.data.frame(summary(fit)$coefficients, stringsAsFactors = FALSE)
+        coef_tbl <- tibble::rownames_to_column(coef_tbl, "Term")
+        out$coefficients <- tibble::as_tibble(coef_tbl)
+
+        tests_tbl <- tryCatch(
+          suppressWarnings(as.data.frame(emmeans::joint_tests(fit), stringsAsFactors = FALSE)),
+          error = identity
         )
-        out$group_contrasts <- as.data.frame(
-          emmeans::contrast(emm_group, method = "pairwise", adjust = "tukey")
-        )
-        emm_time <- emmeans::emmeans(
-          fit,
-          specs = stats::as.formula(paste("~", time_var, "|", group_var))
-        )
-        out$time_contrasts <- as.data.frame(
-          emmeans::contrast(emm_time, method = "pairwise", adjust = "tukey")
-        )
+        if (!inherits(tests_tbl, "error")) {
+          if ("model term" %in% names(tests_tbl)) {
+            tests_tbl <- stats::setNames(tests_tbl, sub("^model term$", "Term", names(tests_tbl)))
+          } else if (!"Term" %in% names(tests_tbl)) {
+            tests_tbl <- tibble::rownames_to_column(tests_tbl, "Term")
+          }
+          out$anova <- tibble::as_tibble(tests_tbl)
+        }
+
+        if (group_var %in% names(df)) {
+          emm_group <- tryCatch(
+            suppressWarnings(emmeans::emmeans(fit, specs = stats::as.formula(paste("~", group_var)))),
+            error = identity
+          )
+          if (!inherits(emm_group, "error")) {
+            out$group_contrasts <- as.data.frame(
+              emmeans::contrast(emm_group, method = "pairwise", adjust = "tukey")
+            )
+          }
+        }
       }
     }
 

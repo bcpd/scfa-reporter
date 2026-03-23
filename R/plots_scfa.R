@@ -27,6 +27,9 @@ plot_scfa_panels <- function(scfa_long,
   colour_col <- janitor::make_clean_names(colour_col)
   if (!is.null(facet_col)) {
     facet_col <- janitor::make_clean_names(facet_col)
+    if (!facet_col %in% names(scfa_long)) {
+      facet_col <- NULL
+    }
   }
 
   analytes <- unique(scfa_long[[analyte_col]])

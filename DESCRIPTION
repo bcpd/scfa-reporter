@@ -22,8 +22,6 @@ Imports:
     ggplot2,
     janitor,
     lmerTest,
-    quarto,
-    lmerTest,
     readxl,
     rlang,
     tibble,
@@ -31,6 +29,8 @@ Imports:
 Suggests:
     testthat (>= 3.0.0),
     withr,
+    kableExtra,
+    quarto,
     rmarkdown,
     knitr
 Config/testthat/edition: 3

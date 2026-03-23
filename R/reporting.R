@@ -38,11 +38,14 @@ render_scfa_report <- function(
   analytes = default_scfa_analytes(),
   normalization_multiplier = 1,
   normalization_basis = "as_is",
-  stats = c("lmer", "anova", "none"),
+  stats = c("lmer", "anova", "lm", "none"),
   lmer_formula = value ~ group * time + (1 | subject_id),
+  lm_formula = NULL,
   aov_formula = NULL,
-  x_col = "group",
-  facet_col = "time",
+  group_col = "group",
+  time_col = "time",
+  x_col = NULL,
+  facet_col = NULL,
   y_label = "SCFA concentration",
   export_csv = TRUE,
   ...
@@ -53,6 +56,9 @@ render_scfa_report <- function(
   }
   if (is.null(manifest) && is.null(manifest_path)) {
     stop("Provide either 'manifest' or 'manifest_path'.", call. = FALSE)
+  }
+  if (!requireNamespace("quarto", quietly = TRUE)) {
+    stop("Package 'quarto' is required to render SCFA reports.", call. = FALSE)
   }
 
   scfa_dir_normalized <- NULL
@@ -84,6 +90,9 @@ render_scfa_report <- function(
   if (inherits(lmer_formula, "formula")) {
     lmer_formula <- Reduce(paste, deparse(lmer_formula))
   }
+  if (inherits(lm_formula, "formula")) {
+    lm_formula <- Reduce(paste, deparse(lm_formula))
+  }
 
   scfa_data_path <- NULL
   if (!is.null(scfa_data)) {
@@ -108,7 +117,10 @@ render_scfa_report <- function(
     normalization_basis = normalization_basis,
     stats = stats,
     lmer_formula = lmer_formula,
+    lm_formula = lm_formula,
     aov_formula = aov_formula,
+    group_col = group_col,
+    time_col = time_col,
     x_col = x_col,
     facet_col = facet_col,
     y_label = y_label,

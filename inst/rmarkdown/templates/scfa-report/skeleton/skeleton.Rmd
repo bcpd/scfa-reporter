@@ -10,13 +10,20 @@ params:
   analytes: !expr scfaReporter::default_scfa_analytes()
   normalization_multiplier: 7
   normalization_basis: "mmol_per_L_plasma"
-  stats: "lmer"   # options: lmer, anova, none
+  stats: "lmer"   # options: lmer, anova, lm, none
   lmer_formula: !expr value ~ Group * Time + (1 | Subject_ID)
+  lm_formula: !expr NULL
   aov_formula: !expr NULL
-  x_col: "Group"
-  facet_col: "Time"
+  group_col: "Group"
+  time_col: "Time"
+  x_col: !expr NULL
+  facet_col: !expr NULL
   y_label: "mmol SCFA / L plasma"
   export_csv: true
+  scfa_data: !expr NULL
+  manifest_override: !expr NULL
+  scfa_data_path: !expr NULL
+  manifest_path_override: !expr NULL
 format:
   html:
     theme: cerulean
@@ -38,13 +45,22 @@ Chromeleon `.xls` exports while `manifest_path` points to the metadata workbook.
 :::
 
 ```{r setup}
-required_params <- c("project_id", "scfa_dir", "manifest_path")
+required_params <- c("project_id", "analytes")
 missing <- required_params[vapply(required_params, function(x) {
   val <- params[[x]]
   is.null(val) || identical(val, "")
 }, logical(1))]
 if (length(missing) > 0) {
   stop("Missing required parameters: ", paste(missing, collapse = ", "), call. = FALSE)
+}
+
+has_scfa_data <- !is.null(params$scfa_data) || (!is.null(params$scfa_data_path) && file.exists(params$scfa_data_path))
+if (!has_scfa_data && is.null(params$scfa_dir)) {
+  stop("Provide either scfa data (object or .rds path) or scfa_dir.", call. = FALSE)
+}
+has_manifest <- !is.null(params$manifest_override) || (!is.null(params$manifest_path_override) && file.exists(params$manifest_path_override))
+if (!has_manifest && is.null(params$manifest_path)) {
+  stop("Provide either manifest data (object or .rds path) or manifest_path.", call. = FALSE)
 }
 
 library(scfaReporter)
@@ -65,6 +81,31 @@ if (is.character(lmer_formula) && nzchar(lmer_formula)) {
   lmer_formula <- stats::as.formula(lmer_formula)
 }
 
+lm_formula <- params$lm_formula
+if (is.character(lm_formula) && nzchar(lm_formula)) {
+  lm_formula <- stats::as.formula(lm_formula)
+}
+
+rename_pvalue <- function(df) {
+  if (is.null(df)) {
+    return(df)
+  }
+  p_col <- intersect(c("Pr(>|t|)", "Pr(>|z|)", "Pr(>|F|)"), names(df))
+  if (length(p_col) > 0) {
+    names(df)[names(df) == p_col[[1]]] <- "p value"
+  }
+  df
+}
+
+scfa_data_obj <- params$scfa_data
+if (!is.null(params$scfa_data_path) && file.exists(params$scfa_data_path)) {
+  scfa_data_obj <- readRDS(params$scfa_data_path)
+}
+manifest_obj <- params$manifest_override
+if (!is.null(params$manifest_path_override) && file.exists(params$manifest_path_override)) {
+  manifest_obj <- readRDS(params$manifest_path_override)
+}
+
 pipeline <- scfaReporter::run_scfa_pipeline(
   scfa_dir = params$scfa_dir,
   manifest_path = params$manifest_path,
@@ -73,10 +114,15 @@ pipeline <- scfaReporter::run_scfa_pipeline(
   normalization_basis = params$normalization_basis,
   stats = params$stats,
   lmer_formula = lmer_formula,
+  lm_formula = lm_formula,
   aov_formula = aov_formula,
+  group_col = params$group_col,
+  time_col = params$time_col,
   x_col = params$x_col,
   facet_col = params$facet_col,
-  y_label = params$y_label
+  y_label = params$y_label,
+  scfa_data = scfa_data_obj,
+  manifest = manifest_obj
 )
 
 normalized_data <- pipeline$normalized
@@ -85,12 +131,34 @@ plots <- pipeline$plots
 models <- pipeline$models
 scfa_long <- pipeline$long
 
-group_levels <- levels(scfa_long$Group)
-time_levels <- levels(scfa_long$Time)
+pretty_label <- function(x) {
+  x <- gsub("_", " ", x)
+  paste0(toupper(substr(x, 1, 1)), substring(x, 2))
+}
+
+summary_labels <- vapply(names(summary_tbl), pretty_label, character(1))
+summary_digits <- vapply(
+  names(summary_tbl),
+  function(x) {
+    if (x %in% c("samples", "subjects")) 0L else if (x %in% c("mean", "sd", "sem", "min", "max")) 2L else 0L
+  },
+  integer(1)
+)
+
+lm_formula_text <- if (inherits(lm_formula, "formula")) paste(deparse(lm_formula), collapse = " ") else lm_formula
 
 description_lookup <- list(
-  lmer = "Box-and-whisker plots display the data for each acid. For every SCFA we fitted a linear mixed-effects model with **Group** and **Time** main effects plus their interaction, along with subject-specific random intercepts. Post-hoc contrasts were obtained with the **emmeans** package.",
+  lmer = "Box-and-whisker plots display the data for each acid. For every SCFA we fitted a linear mixed-effects model with group and time main effects plus their interaction, along with subject-specific random intercepts. Post-hoc contrasts were obtained with the **emmeans** package.",
   anova = "Box-and-whisker plots display the data for each acid. Analysis of variance (ANOVA) was performed to assess statistical differences among variables, followed by Tukey's HSD pairwise comparisons.",
+  lm = if (!is.null(lm_formula_text)) {
+    paste0(
+      "Box-and-whisker plots display the raw data for each acid. We fitted an adjusted linear model on the log1p scale using ",
+      lm_formula_text,
+      " and obtained pairwise group contrasts with the **emmeans** package."
+    )
+  } else {
+    "Box-and-whisker plots display the raw data for each acid. We fitted an adjusted linear model on the log1p scale and obtained pairwise group contrasts with the **emmeans** package."
+  },
   none = "The per-sample short-chain fatty acid (SCFA) content is summarized below."
 )
 stat_description <- description_lookup[[params$stats]] %||% description_lookup$none
@@ -118,8 +186,8 @@ Short-chain fatty acids were quantified using GC-FID and normalized to
 ```{r summary-table}
 knitr::kable(
   summary_tbl,
-  digits = c(0, 0, 0, 0, 0, 2, 2, 2, 2, 2),
-  col.names = c("SCFA", "Group", "Time", "Samples", "Subjects", "Mean", "SD", "SEM", "Min", "Max")
+  digits = summary_digits,
+  col.names = summary_labels
 ) %>%
   kableExtra::kable_styling(bootstrap_options = c("striped", "hover", "condensed", "responsive"))
 ```
@@ -156,9 +224,7 @@ if (params$stats == "lmer") {
     }
     if (!is.null(model_info$coefficients) && "Estimate" %in% colnames(model_info$coefficients)) {
       cat("\n#### Model coefficients\n")
-      coef_view <- model_info$coefficients %>%
-        dplyr::select(Term, Estimate, `Std. Error`, df, `t value`, `Pr(>|t|)`) %>%
-        dplyr::rename(`p value` = `Pr(>|t|)`)
+      coef_view <- rename_pvalue(model_info$coefficients)
       knitr::kable(coef_view, digits = 3) %>%
         kableExtra::kable_styling(bootstrap_options = c("striped", "hover", "condensed", "responsive")) %>%
         print()
@@ -172,6 +238,29 @@ if (params$stats == "lmer") {
     if (!is.null(model_info$time_contrasts)) {
       cat("\n#### Time contrasts (Tukey-adjusted)\n")
       knitr::kable(model_info$time_contrasts, digits = 3) %>%
+        kableExtra::kable_styling(bootstrap_options = c("striped", "hover", "condensed", "responsive")) %>%
+        print()
+    }
+  }
+} else if (params$stats == "lm") {
+  for (name in names(models)) {
+    model_info <- models[[name]]
+    cat("\n### ", name, "\n", sep = "")
+    if (!is.null(model_info$anova)) {
+      cat("\n#### Adjusted term tests\n")
+      knitr::kable(model_info$anova, digits = 3) %>%
+        kableExtra::kable_styling(bootstrap_options = c("striped", "hover", "condensed", "responsive")) %>%
+        print()
+    }
+    if (!is.null(model_info$coefficients)) {
+      cat("\n#### Model coefficients\n")
+      knitr::kable(model_info$coefficients, digits = 3) %>%
+        kableExtra::kable_styling(bootstrap_options = c("striped", "hover", "condensed", "responsive")) %>%
+        print()
+    }
+    if (!is.null(model_info$group_contrasts)) {
+      cat("\n#### Group contrasts (Tukey-adjusted)\n")
+      knitr::kable(model_info$group_contrasts, digits = 3) %>%
         kableExtra::kable_styling(bootstrap_options = c("striped", "hover", "condensed", "responsive")) %>%
         print()
     }
