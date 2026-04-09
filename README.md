@@ -12,6 +12,28 @@ chromatograms.
 
 ## Installation
 
+To install packages from Github private repositories you need to authorize R to contact Github. This can be done with in Visual Studio Code or in RStudio via packages.
+
+``` r
+
+install.packages("usethis")
+install.packages("remotes")
+library("usethis")
+library("remotes")
+
+# This command will open a window in github to create a personal acess token (PAT), create a token with read-only access to all your repositories.
+usethis::create_github_token()
+
+# Copy paste credentials in next command
+gitcreds::gitcreds_set()
+
+# You can also set the credential as an environmental variable.
+Sys.setenv(GITHUB_PAT = "<Credential>")
+remotes::install_github("MicrobiomeInsights/scfaReporter")
+
+```
+
+
 Install the latest internal build directly from GitHub:
 
 ``` r
@@ -89,6 +111,23 @@ render_scfa_report(
   normalization_basis = "mmol_per_L_plasma",
   stats = "lmer",
   lmer_formula = value ~ group * time + (1 | subject_id)
+)
+```
+
+Sometimes, the excel file can have different names or structure e.g sheet names are not what we expected or more lines are skipped. If so you can use the *read_scfa_manifest* first and then use that object in the rendering step
+
+```r
+my_manifest = read_scfa_manifest(path = "P-001100.xlsx", sheet = "Samples", skip = 20)
+
+render_scfa_report(
+  output_file = "P-001100_SCFA_report.html",
+  project_id = "P-001100",
+  scfa_dir = "2026-03-19_P001100",
+  manifest = my_manifest, 
+  normalization_multiplier = 4,
+  normalization_basis = "mmol_per_L_plasma",
+  stats = "anova",
+  aov_formula =value ~ group
 )
 ```
 
