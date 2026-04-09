@@ -12,6 +12,28 @@ chromatograms.
 
 ## Installation
 
+To install packages from Github private repositories you need to authorize R to contact Github. This can be done with in Visual Studio Code or in RStudio via packages.
+
+``` r
+
+install.packages("usethis")
+install.packages("remotes")
+library("usethis")
+library("remotes")
+
+# This command will open a window in github to create a personal acess token (PAT), create a token with read-only access to all your repositories.
+usethis::create_github_token()
+
+# Copy paste credentials in next command
+gitcreds::gitcreds_set()
+
+# You can also set the credential as an environmental variable.
+Sys.setenv(GITHUB_PAT = "<Credential>")
+remotes::install_github("MicrobiomeInsights/scfaReporter")
+
+```
+
+
 Install the latest internal build directly from GitHub:
 
 ``` r
