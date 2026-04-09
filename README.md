@@ -114,6 +114,23 @@ render_scfa_report(
 )
 ```
 
+Sometimes, the excel file can have different names or structure e.g sheet names are not what we expected or more lines are skipped. If so you can use the *read_scfa_manifest* first and then use that object in the rendering step
+
+```r
+my_manifest = read_scfa_manifest(path = "P-001100.xlsx", sheet = "Samples", skip = 20)
+
+render_scfa_report(
+  output_file = "P-001100_SCFA_report.html",
+  project_id = "P-001100",
+  scfa_dir = "2026-03-19_P001100",
+  manifest = my_manifest, 
+  normalization_multiplier = 4,
+  normalization_basis = "mmol_per_L_plasma",
+  stats = "anova",
+  aov_formula =value ~ group
+)
+```
+
 Prefer to edit the template locally? Draft it once and render manually:
 
 1.  Draft:
