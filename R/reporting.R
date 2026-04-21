@@ -141,8 +141,12 @@ render_scfa_report <- function(
   tmp_root <- normalizePath(tempdir(), winslash = "/", mustWork = TRUE)
   tmp_dir <- file.path(tmp_root, paste0("scfa_report_", Sys.getpid()))
   dir.create(tmp_dir, recursive = TRUE, showWarnings = FALSE)
+  template_files <- list.files(dirname(template), all.files = TRUE, no.. = TRUE, full.names = TRUE)
+  copied <- file.copy(template_files, tmp_dir, recursive = TRUE, overwrite = TRUE)
+  if (!all(copied)) {
+    stop("Failed to copy SCFA report template assets.", call. = FALSE)
+  }
   tmp_input <- file.path(tmp_dir, basename(template))
-  file.copy(template, tmp_input, overwrite = TRUE)
 
   cleanup_warning <- FALSE
   tryCatch(

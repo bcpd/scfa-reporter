@@ -2,6 +2,9 @@
 title: "SCFA report - `r params$project_id`"
 author: "Microbiome Insights"
 date: "`r format(Sys.time(), '%d %B, %Y')`"
+brand: _brand.yml
+bibliography: references.bib
+link-citations: true
 params:
   project_id: "P-00UH"
   sample_type: "Plasma"
@@ -26,8 +29,9 @@ params:
   manifest_path_override: !expr NULL
 format:
   html:
-    theme: cerulean
+    theme: [cerulean, brand, styles.scss]
     highlight: tango
+    title-block-style: none
     toc: true
     toc-depth: 2
     toc-location: left
@@ -38,6 +42,20 @@ execute:
   message: false
   echo: false
 ---
+
+::: {.report-brand-header}
+::: {.report-brand-title}
+<h1 class="report-brand-heading">SCFA report - `r params$project_id`</h1>
+
+::: {.report-brand-meta}
+<span>Microbiome Insights</span><span>`r format(Sys.time(), '%d %B, %Y')`</span>
+:::
+:::
+
+::: {.report-brand-logo}
+{{< brand logo report light >}}
+:::
+:::
 
 ```{r setup}
 required_params <- c("project_id", "analytes")
@@ -362,5 +380,6 @@ knitr::kable(cocktail, row.names = FALSE) %>%
 
 # References
 
-Zhao, Guohua, Margareta Nyman, and Jan Åke Jönsson. 2006. “Rapid Determination of Short-Chain Fatty Acids in Colonic Contents and Faeces of Humans and Rats by Acidified Water-Extraction and Direct-Injection Gas Chromatography.” Biomedical Chromatography 20 (8): 674–82.
+::: {#refs}
+:::
 ```

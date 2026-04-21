@@ -66,4 +66,18 @@ test_that("render_scfa_report renders an adjusted lm report without time facetin
   )
 
   expect_true(file.exists(output_file))
+  html <- readLines(output_file, warn = FALSE)
+  expect_true(any(grepl("Microbiome Insights logo", html, fixed = TRUE)))
+  expect_true(any(grepl("report-brand-header", html, fixed = TRUE)))
+})
+
+test_that("SCFA report template includes bundled brand assets", {
+  template_dir <- system.file("rmarkdown/templates/scfa-report/skeleton", package = "scfaReporter")
+
+  expect_true(nzchar(template_dir))
+  expect_true(file.exists(file.path(template_dir, "skeleton.qmd")))
+  expect_true(file.exists(file.path(template_dir, "_brand.yml")))
+  expect_true(file.exists(file.path(template_dir, "references.bib")))
+  expect_true(file.exists(file.path(template_dir, "styles.scss")))
+  expect_true(file.exists(file.path(template_dir, "assets", "mbi-logo.png")))
 })

@@ -1,0 +1,32 @@
+meta:
+  name: Microbiome Insights
+  link: https://microbiomeinsights.com
+
+logo:
+  images:
+    report:
+      path: assets/mbi-logo.png
+      alt: Microbiome Insights logo
+  small: report
+  medium: report
+  large: report
+
+color:
+  palette:
+    white: "#FFFFFF"
+    black: "#000000"
+    primary-blue: "#034E84"
+    link-blue: "#0C7A9B"
+    cyan-blue: "#43C2CD"
+    primary-orange: "#F58956"
+    secondary-mauve: "#8B696A"
+    text-gray: "#7A7A7A"
+    accent-green: "#61CE70"
+
+  foreground: black
+  background: white
+  primary: primary-blue
+  secondary: cyan-blue
+  success: accent-green
+  info: link-blue
+  warning: primary-orange

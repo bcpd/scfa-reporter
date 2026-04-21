@@ -1,7 +1,36 @@
-.Rproj.user
+# macOS
+.DS_Store
+
+# R / RStudio local state
+.Rproj.user/
 .Rhistory
 .RData
+.Ruserdata
 .httr-oauth
-.DS_Store
-.quarto
-docs
+
+# R package build/check outputs
+*.Rcheck/
+*.tar.gz
+
+# Quarto / pkgdown / rendered outputs
+.quarto/
+docs/
+*_files/
+
+# Generated report outputs
+/README.html
+/demo*.html
+/scfa_concentration_normalized.csv
+reports/**/scfa_concentration_normalized.csv
+
+# Local source brand inputs copied into packaged template assets
+/_brand.yml
+/MBI Logo-08.png
+
+# Local coding-agent state
+.codex/
+.claude/
+.cursor/
+.continue/
+.windsurf/
+.aider*
