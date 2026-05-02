@@ -3,15 +3,13 @@ Title: Reproducible Short-Chain Fatty Acid Reporting Toolkit
 Version: 0.1.0
 Authors@R:
     c(
-      person("Microbiome", "Insights", email = "info@microbiomeinsights.com", role = c("aut", "cre")),
-      person("Data Science Team", role = "ctb")
+      person("Pedro", "Dimitriu", role = c("aut", "cre"))
     )
 Description: Provides end-to-end helpers for importing Thermo Chromeleon SCFA
     chromatogram exports, joining them with sample manifests, normalizing
     concentrations, fitting ANOVA or mixed-effects models (with emmeans
-    contrasts), and rendering the bundled Quarto report template used for
-    collaborator deliverables. Includes demo datasets and manifests for quick
-    testing.
+    contrasts), and rendering a bundled Quarto report template. Includes demo
+    datasets and manifests for quick testing.
 License: MIT + file LICENSE
 Encoding: UTF-8
 Roxygen: list(markdown = TRUE)
@@ -37,5 +35,5 @@ Config/testthat/edition: 3
 Depends: 
     R (>= 3.5)
 LazyData: true
-URL: https://github.com/MicrobiomeInsights/scfaReporter
-BugReports: https://github.com/MicrobiomeInsights/scfaReporter/issues
+URL: https://github.com/bcpd/scfa-reporter
+BugReports: https://github.com/bcpd/scfa-reporter/issues

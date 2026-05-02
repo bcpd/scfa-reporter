@@ -3,54 +3,46 @@
 
 # scfaReporter
 
-<!-- badges: start -->
+`scfaReporter` is an R package for processing short-chain fatty acid
+(SCFA) chromatography exports, joining them to sample metadata, running
+common statistical summaries, and rendering analysis-ready HTML reports.
 
-<!-- badges: end -->
-
-The goal of scfaReporter is to analyze and report on raw SCFA
-chromatograms.
+The package is designed for workflows that start with Thermo Chromeleon
+exports and a sample manifest, then produce normalized SCFA concentration
+tables, summary statistics, plots, model results, and a Quarto report.
 
 ## Installation
 
-To install packages from Github private repositories you need to authorize R to contact Github. This can be done with in Visual Studio Code or in RStudio via packages.
-
-``` r
-
-install.packages("usethis")
-install.packages("remotes")
-library("usethis")
-library("remotes")
-
-# This command will open a window in github to create a personal acess token (PAT), create a token with read-only access to all your repositories.
-usethis::create_github_token()
-
-# Copy paste credentials in next command
-gitcreds::gitcreds_set()
-
-# You can also set the credential as an environmental variable.
-Sys.setenv(GITHUB_PAT = "<Credential>")
-remotes::install_github("MicrobiomeInsights/scfaReporter")
-
-```
-
-
-Install the latest internal build directly from GitHub:
+Install the package from GitHub with `pak` or `remotes`:
 
 ``` r
 # install.packages("pak")
-pak::pak("MicrobiomeInsights/scfaReporter")
-# or: remotes::install_github("MicrobiomeInsights/scfaReporter")
+pak::pak("bcpd/scfa-reporter")
+
+# or:
+# install.packages("remotes")
+remotes::install_github("bcpd/scfa-reporter")
 ```
 
-## Quick start: run the pipeline on demo data
+## What It Does
 
-Two tiny demo datasets ship with the package so you can exercise the
-pipeline without external files.
+- Imports SCFA chromatogram exports from a directory of `.xls` files.
+- Reads and cleans sample manifest workbooks.
+- Merges SCFA concentrations with sample metadata.
+- Normalizes analyte concentrations with a configurable multiplier and
+  basis.
+- Runs ANOVA, linear model, or mixed-effects model workflows.
+- Creates analyte-level summaries and plots.
+- Renders a bundled Quarto HTML report.
+
+## Quick Start
+
+Two demo datasets are included so you can run the pipeline without
+external Chromeleon files.
 
 ``` r
 library(scfaReporter)
 
-# Demo dataset 1: simple two-group comparison
 demo1 <- run_scfa_pipeline(
   scfa_data = demo_scfa_dataset1,
   manifest = demo_manifest_dataset1,
@@ -59,51 +51,57 @@ demo1 <- run_scfa_pipeline(
   aov_formula = value ~ group
 )
 
-# Demo dataset 2: longitudinal design
-demo2 <- run_scfa_pipeline(
-  scfa_data = demo_scfa_dataset2,
-  manifest = demo_manifest_dataset2,
-  analytes = c("acetic_acid", "propionic_acid", "butyric_acid"),
-  stats = "anova",
-  aov_formula = value ~ group * time
-)
-
 head(demo1$summary)
-#> # A tibble: 6 × 10
-#>   analyte       group time  samples subjects  mean    sd   sem   min   max
-#>   <fct>         <fct> <fct>   <int>    <int> <dbl> <dbl> <dbl> <dbl> <dbl>
-#> 1 acetic_acid   A     T0         10       10  5.09 0.363 0.115  4.69  5.89
-#> 2 acetic_acid   B     T0         10       10  8.01 0.382 0.121  7.37  8.44
-#> 3 propionic_acid A     T0         10       10  2.81 0.452 0.143  2.16  3.61
-#> 4 propionic_acid B     T0         10       10  3.15 0.457 0.144  2.65  4.08
-#> 5 butyric_acid  A     T0         10       10  2.04 0.625 0.198  1.02  2.86
-#> 6 butyric_acid  B     T0         10       10  2.11 0.442 0.140  1.23  2.68
-demo2$plots$butyric_acid
+demo1$plots$butyric_acid
 ```
 
-<img src="man/figures/README-example-1.png" width="100%" />
+## Run the Pipeline on Project Files
 
-## Generate the SCFA report
-
-Render the bundled Quarto template directly from R:
+For a real project, provide a directory of Chromeleon exports and a
+sample manifest:
 
 ``` r
 library(scfaReporter)
 
-# Demo data (no Chromeleon files required)
-render_scfa_report(
-  output_file = "demo1.html",
-  project_id = "Demo dataset 1",
-  scfa_data = demo_scfa_dataset1,
-  manifest = demo_manifest_dataset1,
-  analytes = c("acetic_acid", "propionic_acid", "butyric_acid"),
+results <- run_scfa_pipeline(
+  scfa_dir = "data/chromatograms",
+  manifest_path = "data/manifest.xlsx",
+  normalization_multiplier = 7,
+  normalization_basis = "mmol_per_L_plasma",
+  stats = "lmer",
+  lmer_formula = value ~ group * time + (1 | subject_id)
+)
+
+results$summary
+results$plots$acetic_acid
+```
+
+If the manifest uses a non-standard sheet name or has extra header rows,
+read it first and pass the cleaned object to the pipeline:
+
+``` r
+manifest <- read_scfa_manifest(
+  path = "data/manifest.xlsx",
+  sheet = "Samples",
+  skip = 20
+)
+
+results <- run_scfa_pipeline(
+  scfa_dir = "data/chromatograms",
+  manifest = manifest,
   stats = "anova",
   aov_formula = value ~ group
 )
+```
 
-# Real Chromeleon exports + manifest
+## Render an HTML Report
+
+Use `render_scfa_report()` to run the workflow and render the bundled
+Quarto template in one step.
+
+``` r
 render_scfa_report(
-  output_file = "client_project.html",
+  output_file = "scfa_report.html",
   project_id = "P-0123",
   scfa_dir = "data/chromatograms",
   manifest_path = "data/manifest.xlsx",
@@ -114,41 +112,43 @@ render_scfa_report(
 )
 ```
 
-Sometimes, the excel file can have different names or structure e.g sheet names are not what we expected or more lines are skipped. If so you can use the *read_scfa_manifest* first and then use that object in the rendering step
+The report can also be rendered from in-memory demo data:
 
-```r
-my_manifest = read_scfa_manifest(path = "P-001100.xlsx", sheet = "Samples", skip = 20)
-
+``` r
 render_scfa_report(
-  output_file = "P-001100_SCFA_report.html",
-  project_id = "P-001100",
-  scfa_dir = "2026-03-19_P001100",
-  manifest = my_manifest, 
-  normalization_multiplier = 4,
-  normalization_basis = "mmol_per_L_plasma",
+  output_file = "demo_report.html",
+  project_id = "Demo dataset",
+  scfa_data = demo_scfa_dataset1,
+  manifest = demo_manifest_dataset1,
+  analytes = c("acetic_acid", "propionic_acid", "butyric_acid"),
   stats = "anova",
-  aov_formula =value ~ group
+  aov_formula = value ~ group
 )
 ```
 
-Prefer to edit the template locally? Draft it once and render manually:
+By default, the report workflow writes
+`scfa_concentration_normalized.csv` next to the rendered HTML file.
 
-1.  Draft:
+## Main Functions
 
-    ``` r
-    rmarkdown::draft(
-      file = "reports/my_project.qmd",
-      template = "scfa-report",
-      package = "scfaReporter",
-      create_dir = TRUE
-    )
-    ```
+- `read_scfa_raw()` imports Chromeleon SCFA exports.
+- `read_scfa_manifest()` imports sample metadata.
+- `run_scfa_pipeline()` runs import, merge, normalization, summaries,
+  models, and plotting.
+- `render_scfa_report()` renders the Quarto report template.
+- `default_scfa_analytes()` returns the default ordered SCFA analyte
+  names.
 
-2.  Update the YAML `params` in `reports/my_project/my_project.qmd` (set
-    either `scfa_dir`/`manifest_path` or
-    `scfa_data`/`manifest_override`).
+## Development
 
-3.  Render:
-    `quarto::quarto_render("reports/my_project/my_project.qmd")`. The
-    HTML report (and optional `scfa_concentration_normalized.csv`)
-    appears beside the `.qmd`.
+Run the test suite with:
+
+``` r
+devtools::test()
+```
+
+Regenerate `README.md` after editing `README.Rmd` with:
+
+``` r
+devtools::build_readme()
+```
